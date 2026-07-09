@@ -1,11 +1,12 @@
 window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0, period:'match' };
 window.matchState = { view:'divisions', div:null, match:null, period:'match' };
 
-// Единый делегированный обработчик для кнопок периода
+// Глобальный делегированный обработчик для кнопок периода
 document.addEventListener('click', function(e) {
     const periodBtn = e.target.closest('.period-btn');
     if (!periodBtn) return;
     const period = periodBtn.dataset.period;
+    // Определяем, где находимся: в экспрессе или в ординаре
     if (window.expressState.step === 'outcomes') {
         window.expressState.period = period;
         renderExpress();
@@ -70,7 +71,7 @@ function renderExpress() {
                 <button class="action-btn small period-btn ${period==='1H'?'selected':''}" data-period="1H">1-й тайм</button>
                 <button class="action-btn small period-btn ${period==='2H'?'selected':''}" data-period="2H">2-й тайм</button>
             </div>
-            <div class="odds-row" id="oddsRow">
+            <div class="odds-row">
                 <div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${odds1}</div></div>
                 <div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${oddsX}</div></div>
                 <div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${odds2}</div></div>
@@ -168,7 +169,7 @@ function renderMatches() {
                     <button class="action-btn small period-btn ${period==='1H'?'selected':''}" data-period="1H">1-й тайм</button>
                     <button class="action-btn small period-btn ${period==='2H'?'selected':''}" data-period="2H">2-й тайм</button>
                 </div>
-                <div class="odds-row" id="oddsRow">
+                <div class="odds-row">
                     <div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${odds1}</div></div>
                     <div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${oddsX}</div></div>
                     <div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${odds2}</div></div>

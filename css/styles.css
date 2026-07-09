@@ -49,7 +49,7 @@ body::after{ content:''; position:fixed; top:-100px; left:-100px; width:300px; h
 .odds-row{ display:flex; gap:10px; margin:20px 0; flex-wrap:wrap; }
 .odd-block{ flex:1; min-width:70px; background:rgba(0,0,0,0.4); border:2px solid transparent; border-radius:16px; padding:15px 8px; text-align:center; cursor:pointer; font-weight:600; transition: all 0.2s; }
 .odd-block:hover{ border-color:rgba(233,69,96,0.5); }
-.odd-block.selected{ border-color:var(--primary); background:rgba(233,69,96,0.2); }
+.odd-block.selected{ border-color:var(--primary); background:rgba(233,69,96,0.25); box-shadow:0 0 15px rgba(233,69,96,0.6); }
 .odd-value{ font-size:1.4rem; color:var(--primary); font-weight:800; }
 .bet-amount-input{ padding:14px; border-radius:14px; background:#0f0f1a; border:1px solid rgba(255,255,255,0.1); color:white; width:130px; font-size:1rem; margin-right:10px; }
 .action-btn{ background:var(--primary); border:none; padding:12px 18px; border-radius:15px; color:white; font-weight:700; cursor:pointer; font-size:0.9rem; box-shadow:0 4px 12px rgba(233,69,96,0.4); transition: transform 0.2s, box-shadow 0.2s; margin:3px; }
@@ -104,3 +104,21 @@ body::after{ content:''; position:fixed; top:-100px; left:-100px; width:300px; h
 .team-stats strong { display:block; margin-bottom:5px; }
 .exact-score-inputs { display:flex; gap:10px; align-items:center; margin:15px 0; }
 .exact-score-inputs input { width:60px; padding:12px; background:#0f0f1a; border:1px solid rgba(255,255,255,0.1); border-radius:12px; color:white; text-align:center; }
+
+/* Кнопки периода */
+.period-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #aaa;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.period-btn.selected {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+    box-shadow: 0 0 10px var(--primary);
+}

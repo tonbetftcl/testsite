@@ -1,6 +1,10 @@
 const DIVISIONS = ['ФТКЛ 2', 'ФТКЛ 3'];
 const normName = n => n.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
-const PERIOD_MULTIPLIERS = { '1H': 1.4, '2H': 1.6 };
+// Множители для таймов: отдельно для исходов (1X2), тоталов (TB/TM/OZ) и точного счёта
+const PERIOD_MULTIPLIERS = {
+    '1H': { outcome: 1.15, total: 1.2, ts: 1.3 },
+    '2H': { outcome: 1.25, total: 1.3, ts: 1.4 }
+};
 
 function getTeamStats(teamName) {
     const norm = normName(teamName);
@@ -126,7 +130,6 @@ function smartOdds(homeStats, awayStats, homeName, awayName) {
     };
 }
 
-// Функции для таймов
 function getPeriodScore(match, period) {
     if (!match.score) return null;
     if (period === 'match') return match.score;
@@ -149,22 +152,20 @@ function getOddsForPeriod(match, outcome, period) {
         if (outcome === 'OZ') return match.odds_OZ;
         return match.odds[outcome];
     }
-    const suffix = period === '1H' ? '_1H' : '_2H';
-    const multiplier = PERIOD_MULTIPLIERS[period];
+    const mult = PERIOD_MULTIPLIERS[period];
+    // Определяем тип исхода
+    let baseOdds;
     if (outcome === 'TS') {
-        return match['odds_TS' + suffix] || (match.odds_TS * multiplier);
+        baseOdds = match.odds_TS;
+        return (match['odds_TS_' + period] || (baseOdds * mult.ts));
     }
-    if (outcome === 'TB') {
-        return match['odds_TB' + suffix] || (match.odds_TB * multiplier);
+    if (['TB', 'TM', 'OZ'].includes(outcome)) {
+        baseOdds = outcome === 'TB' ? match.odds_TB : (outcome === 'TM' ? match.odds_TM : match.odds_OZ);
+        return (match['odds_' + outcome + '_' + period] || (baseOdds * mult.total));
     }
-    if (outcome === 'TM') {
-        return match['odds_TM' + suffix] || (match.odds_TM * multiplier);
-    }
-    if (outcome === 'OZ') {
-        return match['odds_OZ' + suffix] || (match.odds_OZ * multiplier);
-    }
-    return (match.odds && match.odds[suffix] && match.odds[suffix][outcome]) 
-        || (match.odds[outcome] * multiplier);
+    // исходы 1, X, 2
+    baseOdds = match.odds[outcome];
+    return (match.odds && match.odds[period] && match.odds[period][outcome]) || (baseOdds * mult.outcome);
 }
 
 function resolveBetsForMatch(match) {

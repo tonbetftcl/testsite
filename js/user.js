@@ -54,44 +54,52 @@ function renderExpress() {
         }
         const m = selMatches[idx];
         const period = window.expressState.period || 'match';
+        const isCupSingle = m.type === 'cup' && m.stage === 'single';
+        const isCupSecond = m.type === 'cup' && m.stage === 'second';
 
-        const odds1 = getOddsForPeriod(m, '1', period).toFixed(2);
-        const oddsX = getOddsForPeriod(m, 'X', period).toFixed(2);
-        const odds2 = getOddsForPeriod(m, '2', period).toFixed(2);
-        const oddsTB = getOddsForPeriod(m, 'TB', period).toFixed(2);
-        const oddsTM = getOddsForPeriod(m, 'TM', period).toFixed(2);
-        const oddsOZ = getOddsForPeriod(m, 'OZ', period).toFixed(2);
-        const oddsTS = getOddsForPeriod(m, 'TS', period).toFixed(2);
-
-        window.els.tab.innerHTML = `<div class="back-link">← Назад</div><div class="section-title">Исход ${idx+1}/${selMatches.length}</div>
-            <div style="font-size:1.5rem;text-align:center;margin:20px 0;">${m.team1} — ${m.team2}</div>
-            <div style="margin-bottom:15px; display:flex; gap:8px; justify-content:center;" id="periodSelector">
-                <button class="action-btn small period-btn ${period==='match'?'selected':''}" data-period="match">Весь матч</button>
-                <button class="action-btn small period-btn ${period==='1H'?'selected':''}" data-period="1H">1-й тайм</button>
-                <button class="action-btn small period-btn ${period==='2H'?'selected':''}" data-period="2H">2-й тайм</button>
-            </div>
-            <div class="odds-row">
-                <div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${odds1}</div></div>
-                <div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${oddsX}</div></div>
-                <div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${odds2}</div></div>
-                <div class="odd-block" data-out="TB"><div>ТБ 2.5</div><div class="odd-value">${oddsTB}</div></div>
-                <div class="odd-block" data-out="TM"><div>ТМ 2.5</div><div class="odd-value">${oddsTM}</div></div>
-                <div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${oddsOZ}</div></div>
-                <div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${oddsTS}</div></div>
-            </div>`;
-        // Выбор исхода
-        window.els.tab.querySelectorAll('.odd-block').forEach(b => b.onclick = function() {
-            const out = this.dataset.out;
-            if (out === 'TS') {
-                promptExactScore(m, (score) => {
-                    window.expressState.outcomes[m.id] = { type: 'TS', exactScore: score };
-                    renderExpress();
-                });
+        const renderOutcomes = () => {
+            let outcomesHtml = '';
+            if (isCupSingle) {
+                outcomesHtml += `<div class="odd-block" data-out="Pass1"><div>Проход1</div><div class="odd-value">${getOddsForPeriod(m, 'Pass1', period).toFixed(2)}</div></div>`;
+                outcomesHtml += `<div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${getOddsForPeriod(m, 'X', period).toFixed(2)}</div></div>`;
+                outcomesHtml += `<div class="odd-block" data-out="Pass2"><div>Проход2</div><div class="odd-value">${getOddsForPeriod(m, 'Pass2', period).toFixed(2)}</div></div>`;
             } else {
-                window.expressState.outcomes[m.id] = out;
-                renderExpress();
+                outcomesHtml += `<div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${getOddsForPeriod(m, '1', period).toFixed(2)}</div></div>`;
+                outcomesHtml += `<div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${getOddsForPeriod(m, 'X', period).toFixed(2)}</div></div>`;
+                outcomesHtml += `<div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${getOddsForPeriod(m, '2', period).toFixed(2)}</div></div>`;
+                if (isCupSecond) {
+                    outcomesHtml += `<div class="odd-block" data-out="Pass1"><div>Проход1</div><div class="odd-value">${getOddsForPeriod(m, 'Pass1', period).toFixed(2)}</div></div>`;
+                    outcomesHtml += `<div class="odd-block" data-out="Pass2"><div>Проход2</div><div class="odd-value">${getOddsForPeriod(m, 'Pass2', period).toFixed(2)}</div></div>`;
+                }
             }
-        });
+            outcomesHtml += `<div class="odd-block" data-out="TB"><div>ТБ 2.5</div><div class="odd-value">${getOddsForPeriod(m, 'TB', period).toFixed(2)}</div></div>`;
+            outcomesHtml += `<div class="odd-block" data-out="TM"><div>ТМ 2.5</div><div class="odd-value">${getOddsForPeriod(m, 'TM', period).toFixed(2)}</div></div>`;
+            outcomesHtml += `<div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${getOddsForPeriod(m, 'OZ', period).toFixed(2)}</div></div>`;
+            outcomesHtml += `<div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${getOddsForPeriod(m, 'TS', period).toFixed(2)}</div></div>`;
+
+            window.els.tab.innerHTML = `<div class="back-link">← Назад</div><div class="section-title">Исход ${idx+1}/${selMatches.length}</div>
+                <div style="font-size:1.5rem;text-align:center;margin:20px 0;">${m.team1} — ${m.team2}</div>
+                <div style="margin-bottom:15px; display:flex; gap:8px; justify-content:center;" id="periodSelector">
+                    <button class="action-btn small period-btn ${period==='match'?'selected':''}" data-period="match">Весь матч</button>
+                    <button class="action-btn small period-btn ${period==='1H'?'selected':''}" data-period="1H">1-й тайм</button>
+                    <button class="action-btn small period-btn ${period==='2H'?'selected':''}" data-period="2H">2-й тайм</button>
+                </div>
+                <div class="odds-row">${outcomesHtml}</div>`;
+            // Выбор исхода
+            window.els.tab.querySelectorAll('.odd-block').forEach(b => b.onclick = function() {
+                const out = this.dataset.out;
+                if (out === 'TS') {
+                    promptExactScore(m, (score) => {
+                        window.expressState.outcomes[m.id] = { type: 'TS', exactScore: score };
+                        renderExpress();
+                    });
+                } else {
+                    window.expressState.outcomes[m.id] = out;
+                    renderExpress();
+                }
+            });
+        };
+        renderOutcomes();
         window.els.tab.querySelector('.back-link').onclick = () => { window.expressState.step = 'matches'; renderExpress(); };
     } else if (window.expressState.step === 'bet') {
         window.els.tab.innerHTML = `<div class="back-link">← Изменить исходы</div><div class="section-title">Коэффициент: ${window.expressState.totalOdds.toFixed(2)}</div>
@@ -148,22 +156,35 @@ function renderMatches() {
             d.onclick = () => { 
                 window.matchState.match = m; 
                 window.matchState.view = 'bet'; 
-                window.matchState.period = 'match'; // сброс периода только при входе в ставку из списка
+                window.matchState.period = 'match';
                 renderMatches(); 
             };
             ml.appendChild(d);
         });
     } else if (window.matchState.view === 'bet') {
         const m = window.matchState.match;
+        const isCupSingle = m.type === 'cup' && m.stage === 'single';
+        const isCupSecond = m.type === 'cup' && m.stage === 'second';
         const renderBetContent = () => {
             const period = window.matchState.period;
-            const odds1 = getOddsForPeriod(m, '1', period).toFixed(2);
-            const oddsX = getOddsForPeriod(m, 'X', period).toFixed(2);
-            const odds2 = getOddsForPeriod(m, '2', period).toFixed(2);
-            const oddsTB = getOddsForPeriod(m, 'TB', period).toFixed(2);
-            const oddsTM = getOddsForPeriod(m, 'TM', period).toFixed(2);
-            const oddsOZ = getOddsForPeriod(m, 'OZ', period).toFixed(2);
-            const oddsTS = getOddsForPeriod(m, 'TS', period).toFixed(2);
+            let outcomesHtml = '';
+            if (isCupSingle) {
+                outcomesHtml += `<div class="odd-block" data-out="Pass1"><div>Проход1</div><div class="odd-value">${getOddsForPeriod(m, 'Pass1', period).toFixed(2)}</div></div>`;
+                outcomesHtml += `<div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${getOddsForPeriod(m, 'X', period).toFixed(2)}</div></div>`;
+                outcomesHtml += `<div class="odd-block" data-out="Pass2"><div>Проход2</div><div class="odd-value">${getOddsForPeriod(m, 'Pass2', period).toFixed(2)}</div></div>`;
+            } else {
+                outcomesHtml += `<div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${getOddsForPeriod(m, '1', period).toFixed(2)}</div></div>`;
+                outcomesHtml += `<div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${getOddsForPeriod(m, 'X', period).toFixed(2)}</div></div>`;
+                outcomesHtml += `<div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${getOddsForPeriod(m, '2', period).toFixed(2)}</div></div>`;
+                if (isCupSecond) {
+                    outcomesHtml += `<div class="odd-block" data-out="Pass1"><div>Проход1</div><div class="odd-value">${getOddsForPeriod(m, 'Pass1', period).toFixed(2)}</div></div>`;
+                    outcomesHtml += `<div class="odd-block" data-out="Pass2"><div>Проход2</div><div class="odd-value">${getOddsForPeriod(m, 'Pass2', period).toFixed(2)}</div></div>`;
+                }
+            }
+            outcomesHtml += `<div class="odd-block" data-out="TB"><div>ТБ 2.5</div><div class="odd-value">${getOddsForPeriod(m, 'TB', period).toFixed(2)}</div></div>`;
+            outcomesHtml += `<div class="odd-block" data-out="TM"><div>ТМ 2.5</div><div class="odd-value">${getOddsForPeriod(m, 'TM', period).toFixed(2)}</div></div>`;
+            outcomesHtml += `<div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${getOddsForPeriod(m, 'OZ', period).toFixed(2)}</div></div>`;
+            outcomesHtml += `<div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${getOddsForPeriod(m, 'TS', period).toFixed(2)}</div></div>`;
 
             window.els.tab.innerHTML = `<div class="back-link">← К матчам</div><div class="bet-detail">
                 <div style="font-size:1.5rem;text-align:center;margin-bottom:15px;">${m.team1} — ${m.team2}</div>
@@ -172,15 +193,7 @@ function renderMatches() {
                     <button class="action-btn small period-btn ${period==='1H'?'selected':''}" data-period="1H">1-й тайм</button>
                     <button class="action-btn small period-btn ${period==='2H'?'selected':''}" data-period="2H">2-й тайм</button>
                 </div>
-                <div class="odds-row">
-                    <div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${odds1}</div></div>
-                    <div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${oddsX}</div></div>
-                    <div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${odds2}</div></div>
-                    <div class="odd-block" data-out="TB"><div>ТБ 2.5</div><div class="odd-value">${oddsTB}</div></div>
-                    <div class="odd-block" data-out="TM"><div>ТМ 2.5</div><div class="odd-value">${oddsTM}</div></div>
-                    <div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${oddsOZ}</div></div>
-                    <div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${oddsTS}</div></div>
-                </div>
+                <div class="odds-row">${outcomesHtml}</div>
                 ${m.status === 'open' ? `<div style="display:flex;gap:10px;align-items:center;margin-top:20px;">
                     <input type="number" class="bet-amount-input" id="betAmount" placeholder="Сумма" min="1">
                     <button class="action-btn" id="placeBet">Ставка</button>

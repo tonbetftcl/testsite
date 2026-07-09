@@ -1,6 +1,5 @@
-// Состояния для пользовательских табов
-window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0 };
-window.matchState = { view:'divisions', div:null, match:null };
+window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0, period:'match' };
+window.matchState = { view:'divisions', div:null, match:null, period:'match' };
 
 function renderExpress() {
     if (window.expressState.step === 'divisions') {
@@ -28,33 +27,58 @@ function renderExpress() {
         const selMatches = window.expressState.sel.map(id => window.matches.find(m => m.id === id && m.status === 'open')).filter(m => m);
         const idx = Object.keys(window.expressState.outcomes).length;
         if (idx >= selMatches.length) {
-            let tot = 1; selMatches.forEach(m => { const out = window.expressState.outcomes[m.id]; let o = out === 'TS' ? m.odds_TS : out === 'TB' ? m.odds_TB : out === 'TM' ? m.odds_TM : out === 'OZ' ? m.odds_OZ : m.odds[out]; tot *= o; });
+            let tot = 1; selMatches.forEach(m => { const out = window.expressState.outcomes[m.id]; let o = (typeof out === 'object' && out.type === 'TS') ? m.odds_TS : (out === 'TB' ? m.odds_TB : out === 'TM' ? m.odds_TM : out === 'OZ' ? m.odds_OZ : m.odds[out]); tot *= o; });
             window.expressState.totalOdds = +tot.toFixed(2); window.expressState.step = 'bet'; renderExpress(); return;
         }
         const m = selMatches[idx];
-        window.els.tab.innerHTML = `<div class="back-link">← Назад</div><div class="section-title">Исход ${idx+1}/${selMatches.length}</div><div style="font-size:1.5rem;text-align:center;margin:20px 0;">${m.team1} — ${m.team2}</div>
-            <div class="odds-row">
-                <div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${m.odds['1'].toFixed(2)}</div></div>
-                <div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${m.odds['X'].toFixed(2)}</div></div>
-                <div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${m.odds['2'].toFixed(2)}</div></div>
-                <div class="odd-block" data-out="TB"><div>ТБ 2.5</div><div class="odd-value">${m.odds_TB.toFixed(2)}</div></div>
-                <div class="odd-block" data-out="TM"><div>ТМ 2.5</div><div class="odd-value">${m.odds_TM.toFixed(2)}</div></div>
-                <div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${m.odds_OZ.toFixed(2)}</div></div>
-                <div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${m.odds_TS.toFixed(2)}</div></div>
-            </div>`;
-        window.els.tab.querySelector('.back-link').onclick = () => { window.expressState.step = 'matches'; renderExpress(); };
-        window.els.tab.querySelectorAll('.odd-block').forEach(b => b.onclick = function() {
-            const out = this.dataset.out;
-            if (out === 'TS') {
-                promptExactScore(m, (score) => {
-                    window.expressState.outcomes[m.id] = { type: 'TS', exactScore: score };
+        const period = window.expressState.period || 'match';
+
+        const renderOutcomes = () => {
+            const odds1 = getOddsForPeriod(m, '1', period).toFixed(2);
+            const oddsX = getOddsForPeriod(m, 'X', period).toFixed(2);
+            const odds2 = getOddsForPeriod(m, '2', period).toFixed(2);
+            const oddsTB = getOddsForPeriod(m, 'TB', period).toFixed(2);
+            const oddsTM = getOddsForPeriod(m, 'TM', period).toFixed(2);
+            const oddsOZ = getOddsForPeriod(m, 'OZ', period).toFixed(2);
+            const oddsTS = getOddsForPeriod(m, 'TS', period).toFixed(2);
+
+            window.els.tab.innerHTML = `<div class="back-link">← Назад</div><div class="section-title">Исход ${idx+1}/${selMatches.length}</div>
+                <div style="font-size:1.5rem;text-align:center;margin:20px 0;">${m.team1} — ${m.team2}</div>
+                <div style="margin-bottom:15px; display:flex; gap:8px; justify-content:center;" id="periodSelector">
+                    <button class="action-btn small period-btn ${period==='match'?'selected':''}" data-period="match">Весь матч</button>
+                    <button class="action-btn small period-btn ${period==='1H'?'selected':''}" data-period="1H">1-й тайм</button>
+                    <button class="action-btn small period-btn ${period==='2H'?'selected':''}" data-period="2H">2-й тайм</button>
+                </div>
+                <div class="odds-row">
+                    <div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${odds1}</div></div>
+                    <div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${oddsX}</div></div>
+                    <div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${odds2}</div></div>
+                    <div class="odd-block" data-out="TB"><div>ТБ 2.5</div><div class="odd-value">${oddsTB}</div></div>
+                    <div class="odd-block" data-out="TM"><div>ТМ 2.5</div><div class="odd-value">${oddsTM}</div></div>
+                    <div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${oddsOZ}</div></div>
+                    <div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${oddsTS}</div></div>
+                </div>`;
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.onclick = () => {
+                    window.expressState.period = btn.dataset.period;
+                    renderOutcomes();
+                };
+            });
+            window.els.tab.querySelectorAll('.odd-block').forEach(b => b.onclick = function() {
+                const out = this.dataset.out;
+                if (out === 'TS') {
+                    promptExactScore(m, (score) => {
+                        window.expressState.outcomes[m.id] = { type: 'TS', exactScore: score };
+                        renderExpress();
+                    });
+                } else {
+                    window.expressState.outcomes[m.id] = out;
                     renderExpress();
-                });
-            } else {
-                window.expressState.outcomes[m.id] = out;
-                renderExpress();
-            }
-        });
+                }
+            });
+        };
+        renderOutcomes();
+        window.els.tab.querySelector('.back-link').onclick = () => { window.expressState.step = 'matches'; renderExpress(); };
     } else if (window.expressState.step === 'bet') {
         window.els.tab.innerHTML = `<div class="back-link">← Изменить исходы</div><div class="section-title">Коэффициент: ${window.expressState.totalOdds.toFixed(2)}</div>
             <div style="display:flex;gap:10px;align-items:center;margin-top:20px;">
@@ -74,19 +98,19 @@ function renderExpress() {
                 let outcome, odds, exactScore = null;
                 if (typeof outData === 'object' && outData.type === 'TS') {
                     outcome = 'TS';
-                    odds = m.odds_TS;
+                    odds = getOddsForPeriod(m, 'TS', window.expressState.period);
                     exactScore = outData.exactScore;
                 } else {
                     outcome = outData;
-                    odds = outcome === 'TB' ? m.odds_TB : outcome === 'TM' ? m.odds_TM : outcome === 'OZ' ? m.odds_OZ : m.odds[outcome];
+                    odds = getOddsForPeriod(m, outcome, window.expressState.period);
                 }
-                return { matchId: id, team1: m.team1, team2: m.team2, outcome, odds, exactScore };
+                return { matchId: id, team1: m.team1, team2: m.team2, outcome, odds, exactScore, period: window.expressState.period };
             });
             user.balance -= amount;
-            user.bets.push({ type: 'express', legs, totalOdds: window.expressState.totalOdds, amount, status: 'pending', winAmount: 0 });
+            user.bets.push({ type: 'express', legs, totalOdds: window.expressState.totalOdds, amount, status: 'pending', winAmount:0, period: window.expressState.period });
             await saveUsers();
             alert('Ставка принята!');
-            window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0 };
+            window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0, period:'match' };
             renderTab('express');
         };
     }
@@ -111,24 +135,46 @@ function renderMatches() {
         });
     } else if (window.matchState.view === 'bet') {
         const m = window.matchState.match;
-        window.els.tab.innerHTML = `<div class="back-link">← К матчам</div><div class="bet-detail">
-            <div style="font-size:1.5rem;text-align:center;margin-bottom:15px;">${m.team1} — ${m.team2}</div>
-            <div class="odds-row">
-                <div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${m.odds['1'].toFixed(2)}</div></div>
-                <div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${m.odds['X'].toFixed(2)}</div></div>
-                <div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${m.odds['2'].toFixed(2)}</div></div>
-                <div class="odd-block" data-out="TB"><div>ТБ 2.5</div><div class="odd-value">${m.odds_TB.toFixed(2)}</div></div>
-                <div class="odd-block" data-out="TM"><div>ТМ 2.5</div><div class="odd-value">${m.odds_TM.toFixed(2)}</div></div>
-                <div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${m.odds_OZ.toFixed(2)}</div></div>
-                <div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${m.odds_TS.toFixed(2)}</div></div>
-            </div>
-            ${m.status === 'open' ? `<div style="display:flex;gap:10px;align-items:center;margin-top:20px;">
-                <input type="number" class="bet-amount-input" id="betAmount" placeholder="Сумма" min="1">
-                <button class="action-btn" id="placeBet">Ставка</button>
-            </div>` : `<div style="margin-top:20px;color:#ffaa00;">Приём ставок закрыт</div>`}
-        </div>`;
-        window.els.tab.querySelector('.back-link').onclick = () => { window.matchState.view = 'matches'; renderMatches(); };
-        if (m.status === 'open') {
+        window.matchState.period = 'match';
+        const renderBetContent = () => {
+            const period = window.matchState.period;
+            const odds1 = getOddsForPeriod(m, '1', period).toFixed(2);
+            const oddsX = getOddsForPeriod(m, 'X', period).toFixed(2);
+            const odds2 = getOddsForPeriod(m, '2', period).toFixed(2);
+            const oddsTB = getOddsForPeriod(m, 'TB', period).toFixed(2);
+            const oddsTM = getOddsForPeriod(m, 'TM', period).toFixed(2);
+            const oddsOZ = getOddsForPeriod(m, 'OZ', period).toFixed(2);
+            const oddsTS = getOddsForPeriod(m, 'TS', period).toFixed(2);
+
+            window.els.tab.innerHTML = `<div class="back-link">← К матчам</div><div class="bet-detail">
+                <div style="font-size:1.5rem;text-align:center;margin-bottom:15px;">${m.team1} — ${m.team2}</div>
+                <div style="margin-bottom:15px; display:flex; gap:8px; justify-content:center;" id="periodSelector">
+                    <button class="action-btn small period-btn ${period==='match'?'selected':''}" data-period="match">Весь матч</button>
+                    <button class="action-btn small period-btn ${period==='1H'?'selected':''}" data-period="1H">1-й тайм</button>
+                    <button class="action-btn small period-btn ${period==='2H'?'selected':''}" data-period="2H">2-й тайм</button>
+                </div>
+                <div class="odds-row">
+                    <div class="odd-block" data-out="1"><div>П1</div><div class="odd-value">${odds1}</div></div>
+                    <div class="odd-block" data-out="X"><div>Ничья</div><div class="odd-value">${oddsX}</div></div>
+                    <div class="odd-block" data-out="2"><div>П2</div><div class="odd-value">${odds2}</div></div>
+                    <div class="odd-block" data-out="TB"><div>ТБ 2.5</div><div class="odd-value">${oddsTB}</div></div>
+                    <div class="odd-block" data-out="TM"><div>ТМ 2.5</div><div class="odd-value">${oddsTM}</div></div>
+                    <div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${oddsOZ}</div></div>
+                    <div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${oddsTS}</div></div>
+                </div>
+                ${m.status === 'open' ? `<div style="display:flex;gap:10px;align-items:center;margin-top:20px;">
+                    <input type="number" class="bet-amount-input" id="betAmount" placeholder="Сумма" min="1">
+                    <button class="action-btn" id="placeBet">Ставка</button>
+                </div>` : `<div style="margin-top:20px;color:#ffaa00;">Приём ставок закрыт</div>`}
+            </div>`;
+
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.onclick = () => {
+                    window.matchState.period = btn.dataset.period;
+                    renderBetContent();
+                };
+            });
+
             let selOut = null;
             let exactScore = null;
             window.els.tab.querySelectorAll('.odd-block').forEach(b => b.onclick = function() {
@@ -146,25 +192,26 @@ function renderMatches() {
                     exactScore = null;
                 }
             });
-            window.els.tab.querySelector('#placeBet').onclick = async () => {
+            document.getElementById('placeBet').onclick = async () => {
                 const user = getCurrentUser(); if (!user) return;
                 if (!selOut) return alert('Выберите исход');
                 if (selOut === 'TS' && !exactScore) return alert('Введите точный счёт');
-                const amount = +window.els.tab.querySelector('#betAmount').value;
+                const amount = +document.getElementById('betAmount').value;
                 if (isNaN(amount) || amount <= 0) return alert('Некорректная сумма');
                 if (amount > user.balance) return alert('Недостаточно средств');
                 if (user.frozenUntil > Date.now()) return alert('Ставки заморожены до ' + new Date(user.frozenUntil).toLocaleString());
-                let odds = selOut === 'TS' ? m.odds_TS : selOut === 'TB' ? m.odds_TB : selOut === 'TM' ? m.odds_TM : selOut === 'OZ' ? m.odds_OZ : m.odds[selOut];
+                const odds = getOddsForPeriod(m, selOut, window.matchState.period);
                 user.balance -= amount;
-                user.bets.push({ type:'single', matchId:m.id, team1:m.team1, team2:m.team2, outcome:selOut, amount, odds, status:'pending', winAmount:0, exactScore });
+                user.bets.push({ type:'single', matchId:m.id, team1:m.team1, team2:m.team2, outcome:selOut, amount, odds, status:'pending', winAmount:0, exactScore, period: window.matchState.period });
                 await saveUsers();
                 alert('Ставка принята!');
                 document.getElementById('betAmount').value = '';
                 window.els.tab.querySelectorAll('.odd-block').forEach(x => x.classList.remove('selected'));
-                selOut = null;
-                exactScore = null;
+                selOut = null; exactScore = null;
             };
-        }
+        };
+        renderBetContent();
+        window.els.tab.querySelector('.back-link').onclick = () => { window.matchState.view = 'matches'; renderMatches(); };
     }
 }
 
@@ -206,18 +253,20 @@ function renderMyBets() {
     else bets.forEach(bet => {
         const origIndex = user.bets.indexOf(bet);
         if (bet.type === 'express') {
+            const periodStr = bet.period ? (bet.period === '1H' ? ' (1-й тайм)' : bet.period === '2H' ? ' (2-й тайм)' : '') : '';
             const legs = bet.legs.map(l => `${l.team1} — ${l.team2} (${l.outcome==='TS' ? `Точный счёт ${l.exactScore.t1}:${l.exactScore.t2}` : l.outcome==='TB'?'ТБ 2.5':l.outcome==='TM'?'ТМ 2.5':l.outcome==='OZ'?'ОЗ':(l.outcome==='1'?'П1':l.outcome==='X'?'Ничья':'П2')}) @${l.odds.toFixed(2)}`).join('<br>');
             const st = bet.status === 'win' ? `<span class="status-win"><svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Выигрыш</span>` : bet.status === 'lose' ? `<span class="status-lose"><svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Проигрыш</span>` : '<span style="color:#aaa">Ожидание</span>';
             html += `<div style="background:var(--card-bg);border-radius:16px;padding:14px;margin-bottom:10px;" data-bet-index="${origIndex}">
-                <div><strong>Экспресс</strong> (${bet.legs.length} событий, коэф. ${bet.totalOdds.toFixed(2)})</div>
+                <div><strong>Экспресс${periodStr}</strong> (${bet.legs.length} событий, коэф. ${bet.totalOdds.toFixed(2)})</div>
                 <div style="font-size:0.85rem;margin:8px 0;">${legs}</div>
                 <div style="display:flex;justify-content:space-between;"><span>Сумма: ${bet.amount.toFixed(2)}</span>${st}</div>
             </div>`;
         } else {
+            const periodStr = bet.period ? (bet.period === '1H' ? ' (1-й тайм)' : bet.period === '2H' ? ' (2-й тайм)' : '') : '';
             const out = bet.outcome === 'TS' ? `Точный счёт ${bet.exactScore.t1}:${bet.exactScore.t2}` : bet.outcome==='TB'?'ТБ 2.5':bet.outcome==='TM'?'ТМ 2.5':bet.outcome==='OZ'?'ОЗ':(bet.outcome==='1'?'П1':bet.outcome==='X'?'Ничья':'П2');
             const st = bet.status === 'win' ? `<span class="status-win"><svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Выигрыш</span>` : bet.status === 'lose' ? `<span class="status-lose"><svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Проигрыш</span>` : '<span style="color:#aaa">Ожидание</span>';
             html += `<div style="background:var(--card-bg);border-radius:16px;padding:14px;margin-bottom:10px;" data-bet-index="${origIndex}">
-                <div style="display:flex;justify-content:space-between;"><strong>${bet.team1} — ${bet.team2}</strong><span>${out} @ ${bet.odds.toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><strong>${bet.team1} — ${bet.team2}${periodStr}</strong><span>${out} @ ${bet.odds.toFixed(2)}</span></div>
                 <div style="display:flex;justify-content:space-between;margin-top:6px;"><span>Сумма: ${bet.amount.toFixed(2)}</span>${st}</div>
             </div>`;
         }

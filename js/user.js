@@ -146,12 +146,16 @@ function renderMatches() {
         else list.forEach(m => {
             const d = document.createElement('div'); d.className = 'match-item';
             d.innerHTML = `<span>${m.team1} — ${m.team2}</span><span style="color:${m.status==='open'?'#aaa':'#ffaa00'};">${m.status==='open'?'Ставка':'Закрыт'}</span>`;
-            d.onclick = () => { window.matchState.match = m; window.matchState.view = 'bet'; renderMatches(); };
+            d.onclick = () => { 
+                window.matchState.match = m; 
+                window.matchState.view = 'bet'; 
+                window.matchState.period = 'match'; // сброс периода при входе в ставку
+                renderMatches(); 
+            };
             ml.appendChild(d);
         });
     } else if (window.matchState.view === 'bet') {
         const m = window.matchState.match;
-        window.matchState.period = 'match';
         const renderBetContent = () => {
             const period = window.matchState.period;
             const odds1 = getOddsForPeriod(m, '1', period).toFixed(2);

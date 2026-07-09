@@ -7,6 +7,5 @@ firebase.initializeApp({
     messagingSenderId: "683608892991",
     appId: "1:683608892991:web:bd70872ad2f130b8a3ba8a"
 });
-// Добавь эти две строки:
+// Делаем db глобальной переменной
 window.db = firebase.database();
-window.firebase = firebase; // если где-то используется firebase напрямую

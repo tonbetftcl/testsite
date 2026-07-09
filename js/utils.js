@@ -1,6 +1,5 @@
 const DIVISIONS = ['ФТКЛ 2', 'ФТКЛ 3'];
 const normName = n => n.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
-// Умеренные множители для таймов
 const PERIOD_MULTIPLIERS = {
     '1H': { outcome: 1.10, draw: 1.05, total: 1.15, ts: 1.20 },
     '2H': { outcome: 1.15, draw: 1.10, total: 1.20, ts: 1.30 }
@@ -145,6 +144,8 @@ function getPeriodScore(match, period) {
 }
 
 function getOddsForPeriod(match, outcome, period) {
+    if (outcome === 'Pass1') return match.odds_pass1 || (match.odds['1'] * 0.95);
+    if (outcome === 'Pass2') return match.odds_pass2 || (match.odds['2'] * 0.95);
     if (period === 'match') {
         if (outcome === 'TS') return match.odds_TS;
         if (outcome === 'TB') return match.odds_TB;
@@ -162,7 +163,6 @@ function getOddsForPeriod(match, outcome, period) {
         baseOdds = outcome === 'TB' ? match.odds_TB : (outcome === 'TM' ? match.odds_TM : match.odds_OZ);
         return (match['odds_' + outcome + '_' + period] || (baseOdds * mult.total));
     }
-    // исходы 1, X, 2
     baseOdds = match.odds[outcome];
     if (outcome === 'X') {
         return (match.odds && match.odds[period] && match.odds[period]['X']) || (baseOdds * mult.draw);
@@ -181,34 +181,60 @@ function resolveBetsForMatch(match) {
             else if (bet.type === 'express' && bet.legs.some(l => l.matchId === match.id)) matchInBet = true;
             if (!matchInBet) return;
 
-            if (bet.type === 'single') {
-                const periodScore = getPeriodScore(match, bet.period || 'match');
-                if (!periodScore) return;
-                let win = false;
+            const processBet = (b, isLeg = false) => {
+                if (b.outcome === 'Pass1' || b.outcome === 'Pass2') {
+                    if (match.type === 'cup' && match.stage === 'single') {
+                        const passedTeam1 = (match.score.t1 > match.score.t2) || (match.score.t1 === match.score.t2 && match.winner === 'team1');
+                        const won = (b.outcome === 'Pass1' && passedTeam1) || (b.outcome === 'Pass2' && !passedTeam1);
+                        return won ? 'win' : 'lose';
+                    } else if (match.type === 'cup' && match.stage === 'second') {
+                        if (!match.aggregateScore) return null;
+                        const agg = match.aggregateScore;
+                        const passedTeam1 = (agg.t1 > agg.t2) || (agg.t1 === agg.t2 && match.winner === 'team1');
+                        const won = (b.outcome === 'Pass1' && passedTeam1) || (b.outcome === 'Pass2' && !passedTeam1);
+                        return won ? 'win' : 'lose';
+                    }
+                    return null;
+                }
+                if (b.outcome === 'X' && match.type === 'cup' && match.stage === 'single') {
+                    return match.score.t1 === match.score.t2 ? 'win' : 'lose';
+                }
+                const periodScore = getPeriodScore(match, b.period || 'match');
+                if (!periodScore) return null;
                 const { t1, t2 } = periodScore;
-                if (bet.outcome === 'TS') win = t1 === bet.exactScore.t1 && t2 === bet.exactScore.t2;
-                else if (['1','X','2'].includes(bet.outcome)) win = bet.outcome === ((t1 > t2) ? '1' : (t1 === t2) ? 'X' : '2');
-                else if (bet.outcome === 'TB') win = (t1 + t2) > 2.5;
-                else if (bet.outcome === 'TM') win = (t1 + t2) < 2.5;
-                else if (bet.outcome === 'OZ') win = t1 > 0 && t2 > 0;
-                bet.status = win ? 'win' : 'lose';
-                if (win) { bet.winAmount = bet.amount * bet.odds; addBalanceWithLoan(user, bet.winAmount); }
+                if (b.outcome === 'TS') {
+                    return (t1 === b.exactScore.t1 && t2 === b.exactScore.t2) ? 'win' : 'lose';
+                }
+                if (['1','X','2'].includes(b.outcome)) {
+                    const result = (t1 > t2) ? '1' : (t1 === t2) ? 'X' : '2';
+                    return b.outcome === result ? 'win' : 'lose';
+                }
+                if (b.outcome === 'TB') return (t1 + t2) > 2.5 ? 'win' : 'lose';
+                if (b.outcome === 'TM') return (t1 + t2) < 2.5 ? 'win' : 'lose';
+                if (b.outcome === 'OZ') return (t1 > 0 && t2 > 0) ? 'win' : 'lose';
+                return null;
+            };
+
+            if (bet.type === 'single') {
+                const res = processBet(bet);
+                if (res === null) return;
+                bet.status = res;
+                if (res === 'win') { bet.winAmount = bet.amount * bet.odds; addBalanceWithLoan(user, bet.winAmount); }
             } else if (bet.type === 'express') {
                 const allResolved = bet.legs.every(l => {
                     const m = window.matches.find(x => x.id === l.matchId);
-                    return m && getPeriodScore(m, l.period || bet.period || 'match');
+                    if (!m || !m.score) return false;
+                    if (l.outcome === 'Pass1' || l.outcome === 'Pass2' || (l.outcome === 'X' && m.type === 'cup' && m.stage === 'single')) return true;
+                    return getPeriodScore(m, l.period || bet.period || 'match') !== null;
                 });
                 if (!allResolved) return;
-                const allWin = bet.legs.every(l => {
-                    const m = window.matches.find(x => x.id === l.matchId);
-                    const periodScore = getPeriodScore(m, l.period || bet.period || 'match');
-                    const { t1, t2 } = periodScore;
-                    if (l.outcome === 'TS') return t1 === l.exactScore.t1 && t2 === l.exactScore.t2;
-                    if (['1','X','2'].includes(l.outcome)) return l.outcome === ((t1 > t2) ? '1' : (t1 === t2) ? 'X' : '2');
-                    if (l.outcome === 'TB') return (t1 + t2) > 2.5;
-                    if (l.outcome === 'TM') return (t1 + t2) < 2.5;
-                    if (l.outcome === 'OZ') return t1 > 0 && t2 > 0;
-                });
+                let allWin = true;
+                for (const leg of bet.legs) {
+                    const m = window.matches.find(x => x.id === leg.matchId);
+                    const res = processBet(leg);
+                    if (res === null) return;
+                    if (res !== 'win') { allWin = false; break; }
+                }
                 bet.status = allWin ? 'win' : 'lose';
                 if (allWin) { bet.winAmount = bet.amount * bet.totalOdds; addBalanceWithLoan(user, bet.winAmount); }
             }
@@ -216,7 +242,6 @@ function resolveBetsForMatch(match) {
     });
 }
 
-// Кредитная система и push-уведомления (без изменений)
 function getLoanDetails(user) {
     if (!user || !user.loanAmount || user.loanAmount <= 0) return null;
     const now = Date.now();

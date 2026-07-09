@@ -1,12 +1,11 @@
 window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0, period:'match' };
 window.matchState = { view:'divisions', div:null, match:null, period:'match' };
 
-// Глобальный делегированный обработчик для кнопок периода
+// Единый обработчик кликов по кнопкам периода
 document.addEventListener('click', function(e) {
     const periodBtn = e.target.closest('.period-btn');
     if (!periodBtn) return;
     const period = periodBtn.dataset.period;
-    // Определяем, где находимся: в экспрессе или в ординаре
     if (window.expressState.step === 'outcomes') {
         window.expressState.period = period;
         renderExpress();
@@ -149,7 +148,7 @@ function renderMatches() {
             d.onclick = () => { 
                 window.matchState.match = m; 
                 window.matchState.view = 'bet'; 
-                window.matchState.period = 'match'; // сброс периода при входе в ставку
+                window.matchState.period = 'match'; // сброс периода только при входе в ставку из списка
                 renderMatches(); 
             };
             ml.appendChild(d);

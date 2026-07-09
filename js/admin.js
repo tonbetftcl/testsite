@@ -18,7 +18,7 @@ function renderAdminManage() {
     else divMatches.forEach(m => {
         const isOpen = m.status === 'open';
         html += `<div class="admin-match-card">
-            <div class="admin-match-header"><strong>${m.team1} — ${m.team2}</strong></div>
+            <div class="admin-match-header"><strong>${m.team1} — ${m.team2}</strong> (${m.type === 'cup' ? 'Кубок' : 'Лига'}${m.stage ? ', ' + (m.stage === 'first' ? 'Первый' : m.stage === 'second' ? 'Второй' : 'Единственный') : ''})</div>
             <div class="admin-match-status">Статус: <span style="color:${isOpen?'#2ecc71':'#e74c3c'};">${isOpen?'ОТКРЫТ':'ЗАКРЫТ'}</span>${m.score ? ` | Счёт: ${m.score.t1}:${m.score.t2}` : ''}</div>
             <div class="admin-match-odds">П1: ${m.odds['1'].toFixed(2)} | X: ${m.odds['X'].toFixed(2)} | П2: ${m.odds['2'].toFixed(2)} | ТБ: ${m.odds_TB.toFixed(2)} | ТМ: ${m.odds_TM.toFixed(2)} | ОЗ: ${m.odds_OZ.toFixed(2)} | ТС: ${m.odds_TS.toFixed(2)}</div>
             <div style="margin-top:8px;">
@@ -61,24 +61,52 @@ window._editMatch = function(matchId) {
     const m = window.matches.find(x => x.id === matchId);
     if (!m) return;
     window.els.tab.innerHTML = `<div class="back-link" onclick="renderTab('adminManage')">← Назад</div><div class="section-title">Редактировать матч</div>
+        <div class="input-group"><label>Тип</label><select id="editType"><option value="league" ${m.type==='league'?'selected':''}>Лига</option><option value="cup" ${m.type==='cup'?'selected':''}>Кубок</option></select></div>
+        <div class="input-group" id="editStageGroup" style="${m.type==='cup'?'':'display:none'}"><label>Этап</label><select id="editStage"><option value="first" ${m.stage==='first'?'selected':''}>Первый матч</option><option value="second" ${m.stage==='second'?'selected':''}>Второй матч</option><option value="single" ${m.stage==='single'?'selected':''}>Единственный матч</option></select></div>
         <div class="input-group"><label>Команда 1</label><input type="text" id="editTeam1" value="${m.team1}"></div>
         <div class="input-group"><label>Команда 2</label><input type="text" id="editTeam2" value="${m.team2}"></div>
         <div class="input-group"><label>Коэф. П1</label><input type="number" step="0.01" id="editOdds1" value="${m.odds['1']}"></div>
         <div class="input-group"><label>Коэф. Ничья</label><input type="number" step="0.01" id="editOddsX" value="${m.odds['X']}"></div>
         <div class="input-group"><label>Коэф. П2</label><input type="number" step="0.01" id="editOdds2" value="${m.odds['2']}"></div>
+        <div class="input-group" id="editPassOddsGroup" style="${m.type==='cup' && (m.stage==='single' || m.stage==='second')?'':'display:none'}">
+            <label>Коэф. Проход1</label><input type="number" step="0.01" id="editOddsPass1" value="${m.odds_pass1 || (m.odds['1']*0.95).toFixed(2)}">
+            <label>Коэф. Проход2</label><input type="number" step="0.01" id="editOddsPass2" value="${m.odds_pass2 || (m.odds['2']*0.95).toFixed(2)}">
+        </div>
         <div class="input-group"><label>ТБ 2.5</label><input type="number" step="0.01" id="editOddsTB" value="${m.odds_TB}"></div>
         <div class="input-group"><label>ТМ 2.5</label><input type="number" step="0.01" id="editOddsTM" value="${m.odds_TM}"></div>
         <div class="input-group"><label>ОЗ</label><input type="number" step="0.01" id="editOddsOZ" value="${m.odds_OZ}"></div>
         <div class="input-group"><label>Точный счёт</label><input type="number" step="0.01" id="editOddsTS" value="${m.odds_TS}"></div>
-        <div class="input-group"><label>Коэф. 1-го тайма (П1/Х/П2/ТБ/ТМ/ОЗ/ТС через запятую)</label>
-        <input type="text" id="editOdds1H" value="${m.odds_1H ? Object.values(m.odds_1H).join(',') : ''}"></div>
-        <div class="input-group"><label>Коэф. 2-го тайма (через запятую)</label>
-        <input type="text" id="editOdds2H" value="${m.odds_2H ? Object.values(m.odds_2H).join(',') : ''}"></div>
+        <div class="input-group"><label>Коэф. 1-го тайма (через запятую)</label><input type="text" id="editOdds1H" value="${m.odds_1H ? Object.values(m.odds_1H).join(',') : ''}"></div>
+        <div class="input-group"><label>Коэф. 2-го тайма</label><input type="text" id="editOdds2H" value="${m.odds_2H ? Object.values(m.odds_2H).join(',') : ''}"></div>
         <button class="action-btn" id="saveEditBtn">Сохранить</button>`;
+    document.getElementById('editType').onchange = function() {
+        const type = this.value;
+        document.getElementById('editStageGroup').style.display = type === 'cup' ? 'block' : 'none';
+        const stage = document.getElementById('editStage').value;
+        document.getElementById('editPassOddsGroup').style.display = (type === 'cup' && (stage === 'single' || stage === 'second')) ? 'block' : 'none';
+    };
+    document.getElementById('editStage').onchange = function() {
+        const stage = this.value;
+        const type = document.getElementById('editType').value;
+        document.getElementById('editPassOddsGroup').style.display = (type === 'cup' && (stage === 'single' || stage === 'second')) ? 'block' : 'none';
+    };
     document.getElementById('saveEditBtn').onclick = async () => {
+        m.type = document.getElementById('editType').value;
+        if (m.type === 'cup') {
+            m.stage = document.getElementById('editStage').value;
+        } else {
+            m.stage = null;
+        }
         m.team1 = document.getElementById('editTeam1').value.trim();
         m.team2 = document.getElementById('editTeam2').value.trim();
         m.odds = { '1': +document.getElementById('editOdds1').value, 'X': +document.getElementById('editOddsX').value, '2': +document.getElementById('editOdds2').value };
+        if (m.type === 'cup' && (m.stage === 'single' || m.stage === 'second')) {
+            m.odds_pass1 = +document.getElementById('editOddsPass1').value;
+            m.odds_pass2 = +document.getElementById('editOddsPass2').value;
+        } else {
+            m.odds_pass1 = null;
+            m.odds_pass2 = null;
+        }
         m.odds_TB = +document.getElementById('editOddsTB').value;
         m.odds_TM = +document.getElementById('editOddsTM').value;
         m.odds_OZ = +document.getElementById('editOddsOZ').value;
@@ -126,7 +154,9 @@ window._viewMatchBets = function(matchId) {
 window._setMatchScore = function(matchId) {
     const m = window.matches.find(x => x.id === matchId);
     if (!m) return;
-    window.els.tab.innerHTML = `<div class="back-link" onclick="renderTab('adminManage')">← Назад</div><div class="section-title">Ввод счёта: ${m.team1} — ${m.team2}</div>
+    const isCupSingle = m.type === 'cup' && m.stage === 'single';
+    const isCupSecond = m.type === 'cup' && m.stage === 'second';
+    let html = `<div class="back-link" onclick="renderTab('adminManage')">← Назад</div><div class="section-title">Ввод счёта: ${m.team1} — ${m.team2}</div>
         <div style="margin:10px 0;"><strong>Первый тайм:</strong></div>
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
             <input type="number" class="scoreT1_1H" placeholder="${m.team1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
@@ -138,21 +168,66 @@ window._setMatchScore = function(matchId) {
             <input type="number" class="scoreT1_2H" placeholder="${m.team1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
             <span>:</span>
             <input type="number" class="scoreT2_2H" placeholder="${m.team2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        </div>`;
+
+    if (isCupSecond) {
+        html += `<div style="margin:10px 0;"><strong>Общий счёт (сумма двух матчей):</strong></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:15px;">
+            <input type="number" class="aggT1" placeholder="${m.team1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+            <span>:</span>
+            <input type="number" class="aggT2" placeholder="${m.team2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        </div>`;
+    }
+    if (isCupSingle || isCupSecond) {
+        html += `<div style="margin:10px 0;"><strong>Победитель по пенальти (если ничья):</strong></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:15px;">
+            <button class="action-btn small winnerBtn" data-winner="team1">${m.team1}</button>
+            <button class="action-btn small winnerBtn" data-winner="team2">${m.team2}</button>
+            <button class="action-btn small winnerBtn" data-winner="" style="background:#555;">Нет (без пенальти)</button>
         </div>
-        <button class="action-btn" id="saveScoreBtn">Сохранить</button>`;
+        <input type="hidden" id="matchWinner" value="">`;
+    }
+    html += `<button class="action-btn" id="saveScoreBtn">Сохранить</button>`;
+
+    window.els.tab.innerHTML = html;
+
+    if (isCupSingle || isCupSecond) {
+        document.querySelectorAll('.winnerBtn').forEach(btn => {
+            btn.onclick = function() {
+                document.querySelectorAll('.winnerBtn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                document.getElementById('matchWinner').value = this.dataset.winner;
+            };
+        });
+    }
+
     document.getElementById('saveScoreBtn').onclick = async () => {
         const ht1 = +document.querySelector('.scoreT1_1H').value;
         const ht2 = +document.querySelector('.scoreT2_1H').value;
         const ht1_2 = +document.querySelector('.scoreT1_2H').value;
         const ht2_2 = +document.querySelector('.scoreT2_2H').value;
         if (isNaN(ht1)||isNaN(ht2)||isNaN(ht1_2)||isNaN(ht2_2)) return alert('Введите все числа');
+
         m.score_ht = { t1: ht1, t2: ht2 };
         m.score = { t1: ht1 + ht1_2, t2: ht2 + ht2_2 };
         m.result = (m.score.t1 > m.score.t2) ? '1' : (m.score.t1 === m.score.t2) ? 'X' : '2';
+
+        if (isCupSecond) {
+            const aggT1 = +document.querySelector('.aggT1').value;
+            const aggT2 = +document.querySelector('.aggT2').value;
+            if (isNaN(aggT1)||isNaN(aggT2)) return alert('Введите общий счёт');
+            m.aggregateScore = { t1: aggT1, t2: aggT2 };
+        }
+
+        if (isCupSingle || isCupSecond) {
+            const winner = document.getElementById('matchWinner').value;
+            m.winner = winner || null;
+        }
+
         m.archived = true;
         resolveBetsForMatch(m);
         await saveMatches(); await saveUsers();
-        await logAdminAction(`Ввёл счёт матча ${m.team1} — ${m.team2} (1Т ${ht1}:${ht2}, 2Т ${ht1_2}:${ht2_2})`);
+        await logAdminAction(`Ввёл счёт матча ${m.team1} — ${m.team2}`);
         alert('Счёт сохранён, матч перемещён в архив, ставки рассчитаны');
         renderTab('adminManage');
     };
@@ -164,7 +239,9 @@ window._editMatchScore = function(matchId) {
     const ht = m.score_ht || { t1: 0, t2: 0 };
     const ht2_t1 = m.score.t1 - ht.t1;
     const ht2_t2 = m.score.t2 - ht.t2;
-    window.els.tab.innerHTML = `<div class="back-link" onclick="renderTab('adminManage')">← Назад</div><div class="section-title">Изменить счёт: ${m.team1} — ${m.team2}</div>
+    const isCupSingle = m.type === 'cup' && m.stage === 'single';
+    const isCupSecond = m.type === 'cup' && m.stage === 'second';
+    let html = `<div class="back-link" onclick="renderTab('adminManage')">← Назад</div><div class="section-title">Изменить счёт: ${m.team1} — ${m.team2}</div>
         <div style="margin:10px 0;"><strong>Первый тайм:</strong></div>
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
             <input type="number" class="scoreT1_1H" value="${ht.t1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
@@ -176,20 +253,66 @@ window._editMatchScore = function(matchId) {
             <input type="number" class="scoreT1_2H" value="${ht2_t1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
             <span>:</span>
             <input type="number" class="scoreT2_2H" value="${ht2_t2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        </div>`;
+
+    if (isCupSecond) {
+        const agg = m.aggregateScore || { t1: 0, t2: 0 };
+        html += `<div style="margin:10px 0;"><strong>Общий счёт:</strong></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:15px;">
+            <input type="number" class="aggT1" value="${agg.t1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+            <span>:</span>
+            <input type="number" class="aggT2" value="${agg.t2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        </div>`;
+    }
+    if (isCupSingle || isCupSecond) {
+        html += `<div style="margin:10px 0;"><strong>Победитель по пенальти:</strong></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:15px;">
+            <button class="action-btn small winnerBtn ${m.winner==='team1'?'selected':''}" data-winner="team1">${m.team1}</button>
+            <button class="action-btn small winnerBtn ${m.winner==='team2'?'selected':''}" data-winner="team2">${m.team2}</button>
+            <button class="action-btn small winnerBtn ${!m.winner?'selected':''}" data-winner="" style="background:#555;">Нет</button>
         </div>
-        <button class="action-btn" id="saveNewScoreBtn">Сохранить изменения</button>`;
+        <input type="hidden" id="matchWinner" value="${m.winner||''}">`;
+    }
+    html += `<button class="action-btn" id="saveNewScoreBtn">Сохранить изменения</button>`;
+
+    window.els.tab.innerHTML = html;
+
+    if (isCupSingle || isCupSecond) {
+        document.querySelectorAll('.winnerBtn').forEach(btn => {
+            btn.onclick = function() {
+                document.querySelectorAll('.winnerBtn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                document.getElementById('matchWinner').value = this.dataset.winner;
+            };
+        });
+    }
+
     document.getElementById('saveNewScoreBtn').onclick = async () => {
         const ht1 = +document.querySelector('.scoreT1_1H').value;
         const ht2 = +document.querySelector('.scoreT2_1H').value;
         const ht1_2 = +document.querySelector('.scoreT1_2H').value;
         const ht2_2 = +document.querySelector('.scoreT2_2H').value;
         if (isNaN(ht1)||isNaN(ht2)||isNaN(ht1_2)||isNaN(ht2_2)) return alert('Введите все числа');
+
         const newScore_ht = { t1: ht1, t2: ht2 };
         const newScore = { t1: ht1 + ht1_2, t2: ht2 + ht2_2 };
         const newResult = (newScore.t1 > newScore.t2) ? '1' : (newScore.t1 === newScore.t2) ? 'X' : '2';
         m.score_ht = newScore_ht;
         m.score = newScore;
         m.result = newResult;
+
+        if (isCupSecond) {
+            const aggT1 = +document.querySelector('.aggT1').value;
+            const aggT2 = +document.querySelector('.aggT2').value;
+            if (isNaN(aggT1)||isNaN(aggT2)) return alert('Введите общий счёт');
+            m.aggregateScore = { t1: aggT1, t2: aggT2 };
+        }
+
+        if (isCupSingle || isCupSecond) {
+            const winner = document.getElementById('matchWinner').value;
+            m.winner = winner || null;
+        }
+
         for (const u of window.users) {
             (u.bets || []).forEach(bet => {
                 if (bet.matchId === matchId || (bet.legs && bet.legs.some(l => l.matchId === matchId))) {
@@ -210,13 +333,17 @@ window._editMatchScore = function(matchId) {
 function renderAdminAdd() {
     window.els.tab.innerHTML = `<div class="section-title">Добавить матч</div>
         <div class="input-group"><label>Дивизион</label><select id="newDivision">${DIVISIONS.map(d => `<option>${d}</option>`).join('')}</select></div>
+        <div class="input-group"><label>Тип</label><select id="newType"><option value="league">Лига</option><option value="cup">Кубок</option></select></div>
+        <div class="input-group" id="newStageGroup" style="display:none"><label>Этап</label><select id="newStage"><option value="first">Первый матч</option><option value="second">Второй матч</option><option value="single">Единственный матч</option></select></div>
         <div class="input-group"><label>Команда 1 (хозяева)</label><input type="text" id="newTeam1" placeholder="Название"></div>
         <div class="input-group"><label>Команда 2 (гости)</label><input type="text" id="newTeam2" placeholder="Название"></div>
         <div class="input-group"><label>Коэф. точного счёта</label><input type="number" step="0.01" id="newOddsTS" value="7.0"></div>
-        <div class="input-group"><label>Коэф. 1-го тайма (П1/Х/П2/ТБ/ТМ/ОЗ/ТС через запятую, или пусто для авто)</label>
-        <input type="text" id="newOdds1H" placeholder="напр: 2.5,3.2,2.8,2.6,2.4,2.7,7.5"></div>
-        <div class="input-group"><label>Коэф. 2-го тайма (через запятую или пусто)</label>
-        <input type="text" id="newOdds2H" placeholder="напр: 2.7,3.5,3.0,2.8,2.6,2.9,8.0"></div>
+        <div class="input-group" id="newPassOddsGroup" style="display:none">
+            <label>Коэф. Проход1</label><input type="number" step="0.01" id="newOddsPass1" value="0">
+            <label>Коэф. Проход2</label><input type="number" step="0.01" id="newOddsPass2" value="0">
+        </div>
+        <div class="input-group"><label>Коэф. 1-го тайма (через запятую или пусто)</label><input type="text" id="newOdds1H" placeholder="напр: 2.5,3.2,2.8,2.6,2.4,2.7,7.5"></div>
+        <div class="input-group"><label>Коэф. 2-го тайма</label><input type="text" id="newOdds2H" placeholder="напр: 2.7,3.5,3.0,2.8,2.6,2.9,8.0"></div>
         <div id="calculatedOdds" style="margin:15px 0; display:none;">
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <div class="odd-block"><div>П1</div><div class="odd-value" id="odd1">—</div></div>
@@ -230,6 +357,19 @@ function renderAdminAdd() {
         </div>
         <button class="action-btn" id="calcOddsBtn">Рассчитать коэффициенты</button>
         <button class="action-btn" id="addMatchBtn" style="display:none; margin-top:10px;">Добавить матч</button>`;
+
+    document.getElementById('newType').onchange = function() {
+        const type = this.value;
+        document.getElementById('newStageGroup').style.display = type === 'cup' ? 'block' : 'none';
+        const stage = document.getElementById('newStage').value;
+        document.getElementById('newPassOddsGroup').style.display = (type === 'cup' && (stage === 'single' || stage === 'second')) ? 'block' : 'none';
+    };
+    document.getElementById('newStage').onchange = function() {
+        const stage = this.value;
+        const type = document.getElementById('newType').value;
+        document.getElementById('newPassOddsGroup').style.display = (type === 'cup' && (stage === 'single' || stage === 'second')) ? 'block' : 'none';
+    };
+
     document.getElementById('calcOddsBtn').onclick = () => {
         const t1 = document.getElementById('newTeam1').value.trim();
         const t2 = document.getElementById('newTeam2').value.trim();
@@ -245,55 +385,45 @@ function renderAdminAdd() {
         document.getElementById('oddOZ').textContent = odds['OZ'].toFixed(2);
         document.getElementById('calculatedOdds').style.display = 'block';
         document.getElementById('addMatchBtn').style.display = 'inline-block';
-
         document.getElementById('teamStatsInfo').innerHTML = `
-            <div class="team-stats">
-                <strong>${t1} (хозяева)</strong>
-                Матчей: ${stats1.matchesPlayed}, Побед: ${stats1.wins}, Ничьих: ${stats1.draws}, Поражений: ${stats1.losses}<br>
-                Голов забито: ${stats1.goalsScored}, пропущено: ${stats1.goalsConceded} (разница: ${stats1.goalDiff})<br>
-                Среднее забито: ${stats1.avgScored}, пропущено: ${stats1.avgConceded}<br>
-                Сила атаки: ${stats1.attackStrength}, защиты: ${stats1.defenseStrength}, общая: ${stats1.overallStrength}<br>
-                Процент побед: ${stats1.winRate}%, ничьих: ${stats1.drawRate}%, поражений: ${stats1.lossRate}%
-            </div>
-            <div class="team-stats">
-                <strong>${t2} (гости)</strong>
-                Матчей: ${stats2.matchesPlayed}, Побед: ${stats2.wins}, Ничьих: ${stats2.draws}, Поражений: ${stats2.losses}<br>
-                Голов забито: ${stats2.goalsScored}, пропущено: ${stats2.goalsConceded} (разница: ${stats2.goalDiff})<br>
-                Среднее забито: ${stats2.avgScored}, пропущено: ${stats2.avgConceded}<br>
-                Сила атаки: ${stats2.attackStrength}, защиты: ${stats2.defenseStrength}, общая: ${stats2.overallStrength}<br>
-                Процент побед: ${stats2.winRate}%, ничьих: ${stats2.drawRate}%, поражений: ${stats2.lossRate}%
-            </div>
-        `;
+            <div class="team-stats"><strong>${t1}</strong> Матчей: ${stats1.matchesPlayed}, Побед: ${stats1.wins}, Ничьих: ${stats1.draws}, Поражений: ${stats1.losses}<br>...</div>
+            <div class="team-stats"><strong>${t2}</strong> Матчей: ${stats2.matchesPlayed}, Побед: ${stats2.wins}, Ничьих: ${stats2.draws}, Поражений: ${stats2.losses}<br>...</div>`;
         window._calculatedOddsData = odds;
     };
+
     document.getElementById('addMatchBtn').onclick = async () => {
         const odds = window._calculatedOddsData;
         if (!odds) return;
         const div = document.getElementById('newDivision').value;
+        const type = document.getElementById('newType').value;
         const t1 = document.getElementById('newTeam1').value.trim();
         const t2 = document.getElementById('newTeam2').value.trim();
         const ts = +document.getElementById('newOddsTS').value || 7.0;
+        const stage = type === 'cup' ? document.getElementById('newStage').value : null;
 
         const parsePeriodOdds = (str) => {
             const parts = str.split(',').map(Number);
             if (parts.length !== 7) return null;
-            return {
-                '1': parts[0], 'X': parts[1], '2': parts[2],
-                'TB': parts[3], 'TM': parts[4], 'OZ': parts[5],
-                'TS': parts[6]
-            };
+            return { '1': parts[0], 'X': parts[1], '2': parts[2], 'TB': parts[3], 'TM': parts[4], 'OZ': parts[5], 'TS': parts[6] };
         };
         const odds1H = parsePeriodOdds(document.getElementById('newOdds1H').value);
         const odds2H = parsePeriodOdds(document.getElementById('newOdds2H').value);
 
         const matchObj = {
-            id:'m_'+Date.now(), division:div, team1:t1, team2:t2, 
-            odds:{ '1':odds['1'], 'X':odds['X'], '2':odds['2'] }, 
-            odds_TB:odds['TB'], odds_TM:odds['TM'], odds_OZ:odds['OZ'], 
+            id: 'm_'+Date.now(), division: div, type: type, stage: stage,
+            team1: t1, team2: t2,
+            odds: { '1': odds['1'], 'X': odds['X'], '2': odds['2'] },
+            odds_TB: odds['TB'], odds_TM: odds['TM'], odds_OZ: odds['OZ'],
             odds_TS: ts,
-            status:'open', score:null, score_ht:null, result:null, archived:false,
-            odds_1H: odds1H, odds_2H: odds2H
+            odds_pass1: null, odds_pass2: null,
+            status: 'open', score: null, score_ht: null, result: null, archived: false,
+            odds_1H: odds1H, odds_2H: odds2H,
+            winner: null, aggregateScore: null
         };
+        if (type === 'cup' && (stage === 'single' || stage === 'second')) {
+            matchObj.odds_pass1 = +document.getElementById('newOddsPass1').value || (odds['1'] * 0.95);
+            matchObj.odds_pass2 = +document.getElementById('newOddsPass2').value || (odds['2'] * 0.95);
+        }
         window.matches.push(matchObj);
         await saveMatches(); await logAdminAction(`Добавил матч ${t1} — ${t2} в ${div}`);
         alert('Матч добавлен!');

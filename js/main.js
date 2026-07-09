@@ -44,6 +44,12 @@ async function loadData() {
         if (m.score_ht === undefined) m.score_ht = null;
         if (m.odds_1H === undefined) m.odds_1H = null;
         if (m.odds_2H === undefined) m.odds_2H = null;
+        if (m.type === undefined) m.type = 'league';
+        if (m.stage === undefined) m.stage = null;
+        if (m.odds_pass1 === undefined) m.odds_pass1 = null;
+        if (m.odds_pass2 === undefined) m.odds_pass2 = null;
+        if (m.winner === undefined) m.winner = null;
+        if (m.aggregateScore === undefined) m.aggregateScore = null;
     });
     const knownAdmins = ['admin', 'V0rt3x', 'N3bulous'];
     const worker = 'worker1';
@@ -79,8 +85,47 @@ async function logout() {
     localStorage.removeItem('tonbet_remembered'); 
     window.currentUsername = null; 
     window.els.headerRight.innerHTML = ''; 
+    // отключаем слушатели уведомлений
+    if (window._personalListener) { window.db.ref('personalNotifications/' + window.currentUsername).off('value', window._personalListener); }
+    if (window._globalListener) { window.db.ref('notification').off('value', window._globalListener); }
     showAuth(); 
 }
+
+function showNotificationModal(title, message, persistent = false) {
+    const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
+    overlay.innerHTML = `<div class="modal-content"><div style="font-size:1.3rem;margin-bottom:15px;">${title}</div><div>${message}</div><button class="modal-btn green closeModal">Ок</button></div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('.closeModal').onclick = () => overlay.remove();
+    if (!persistent) {
+        setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 10000);
+    }
+}
+
+function setupNotifications() {
+    const user = getCurrentUser();
+    if (!user) return;
+    // Личные сообщения
+    if (window._personalListener) window.db.ref('personalNotifications/' + user.username).off('value', window._personalListener);
+    window._personalListener = window.db.ref('personalNotifications/' + user.username).on('value', snap => {
+        const text = snap.val();
+        if (text) {
+            showNotificationModal('Уведомление от администратора ЛИЧНО ВАМ', text);
+            window.db.ref('personalNotifications/' + user.username).set(null); // удаляем после показа
+        }
+    });
+
+    // Общие уведомления
+    if (window._globalListener) window.db.ref('notification').off('value', window._globalListener);
+    window._globalListener = window.db.ref('notification').on('value', snap => {
+        const text = snap.val();
+        if (text) {
+            showNotificationModal('Сообщение от администратора', text);
+            // Не удаляем, чтобы все увидели, но можно сбрасывать после прочтения (по желанию)
+            // window.db.ref('notification').set(null);
+        }
+    });
+}
+
 async function showMain() {
     window.els.welcome.classList.add('hidden'); window.els.auth.classList.add('hidden'); window.els.main.classList.remove('hidden');
     const user = getCurrentUser(); window.els.headerRight.innerHTML = '';
@@ -93,14 +138,15 @@ async function showMain() {
     window.els.headerRight.appendChild(logoutBtn);
     renderTab(window.currentTab);
     checkPendingBets();
-    checkAdminNotification();
     if (user && user.role !== 'admin' && user.role !== 'match_manager') {
         checkLoanStatus(user);
         await saveUsers();
     }
+    // Запуск слушателей уведомлений для обычных пользователей
+    if (user && user.role !== 'admin' && user.role !== 'match_manager') {
+        setupNotifications();
+    }
 }
-
-async function checkAdminNotification() { /* ... без изменений ... */ }
 
 function checkPendingBets() {
     const user = getCurrentUser();

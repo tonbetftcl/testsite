@@ -56,6 +56,7 @@ window._toggleMatchStatus = async function(matchId) { const m = window.matches.f
 window._deleteMatch = async function(matchId) { if (!confirm('Удалить матч безвозвратно?')) return; const m = window.matches.find(x => x.id === matchId); window.matches = window.matches.filter(x => x.id !== matchId); await saveMatches(); if (m) await logAdminAction(`Удалил матч ${m.team1} — ${m.team2}`); renderTab('adminManage'); };
 window._archiveMatch = async function(matchId) { const m = window.matches.find(x => x.id === matchId); if (m) { m.archived = true; m.status = 'closed'; await saveMatches(); await logAdminAction(`Архивировал матч ${m.team1} — ${m.team2}`); renderTab('adminManage'); } };
 window._restoreMatch = async function(matchId) { const m = window.matches.find(x => x.id === matchId); if (m) { m.archived = false; m.status = 'closed'; await saveMatches(); await logAdminAction(`Восстановил матч ${m.team1} — ${m.team2} из архива`); renderTab('adminManage'); } };
+
 window._editMatch = function(matchId) {
     const m = window.matches.find(x => x.id === matchId);
     if (!m) return;
@@ -69,6 +70,10 @@ window._editMatch = function(matchId) {
         <div class="input-group"><label>ТМ 2.5</label><input type="number" step="0.01" id="editOddsTM" value="${m.odds_TM}"></div>
         <div class="input-group"><label>ОЗ</label><input type="number" step="0.01" id="editOddsOZ" value="${m.odds_OZ}"></div>
         <div class="input-group"><label>Точный счёт</label><input type="number" step="0.01" id="editOddsTS" value="${m.odds_TS}"></div>
+        <div class="input-group"><label>Коэф. 1-го тайма (П1/Х/П2/ТБ/ТМ/ОЗ/ТС через запятую)</label>
+        <input type="text" id="editOdds1H" value="${m.odds_1H ? Object.values(m.odds_1H).join(',') : ''}"></div>
+        <div class="input-group"><label>Коэф. 2-го тайма (через запятую)</label>
+        <input type="text" id="editOdds2H" value="${m.odds_2H ? Object.values(m.odds_2H).join(',') : ''}"></div>
         <button class="action-btn" id="saveEditBtn">Сохранить</button>`;
     document.getElementById('saveEditBtn').onclick = async () => {
         m.team1 = document.getElementById('editTeam1').value.trim();
@@ -78,6 +83,19 @@ window._editMatch = function(matchId) {
         m.odds_TM = +document.getElementById('editOddsTM').value;
         m.odds_OZ = +document.getElementById('editOddsOZ').value;
         m.odds_TS = +document.getElementById('editOddsTS').value;
+
+        const parsePeriodOdds = (str) => {
+            const parts = str.split(',').map(Number);
+            if (parts.length !== 7) return null;
+            return {
+                '1': parts[0], 'X': parts[1], '2': parts[2],
+                'TB': parts[3], 'TM': parts[4], 'OZ': parts[5],
+                'TS': parts[6]
+            };
+        };
+        m.odds_1H = parsePeriodOdds(document.getElementById('editOdds1H').value);
+        m.odds_2H = parsePeriodOdds(document.getElementById('editOdds2H').value);
+
         await saveMatches(); await logAdminAction(`Изменил матч ${m.team1} — ${m.team2}`); alert('Матч обновлён'); renderTab('adminManage');
     };
 };
@@ -109,48 +127,32 @@ window._setMatchScore = function(matchId) {
     const m = window.matches.find(x => x.id === matchId);
     if (!m) return;
     window.els.tab.innerHTML = `<div class="back-link" onclick="renderTab('adminManage')">← Назад</div><div class="section-title">Ввод счёта: ${m.team1} — ${m.team2}</div>
-        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
-            <input type="number" class="scoreT1" placeholder="${m.team1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        <div style="margin:10px 0;"><strong>Первый тайм:</strong></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+            <input type="number" class="scoreT1_1H" placeholder="${m.team1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
             <span>:</span>
-            <input type="number" class="scoreT2" placeholder="${m.team2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
-            <button class="action-btn" id="saveScoreBtn">Сохранить</button>
-        </div>`;
+            <input type="number" class="scoreT2_1H" placeholder="${m.team2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        </div>
+        <div style="margin:10px 0;"><strong>Второй тайм:</strong></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:15px;">
+            <input type="number" class="scoreT1_2H" placeholder="${m.team1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+            <span>:</span>
+            <input type="number" class="scoreT2_2H" placeholder="${m.team2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        </div>
+        <button class="action-btn" id="saveScoreBtn">Сохранить</button>`;
     document.getElementById('saveScoreBtn').onclick = async () => {
-        const t1 = +window.els.tab.querySelector('.scoreT1').value;
-        const t2 = +window.els.tab.querySelector('.scoreT2').value;
-        if (isNaN(t1)||isNaN(t2)) return alert('Введите числа');
-        m.score = {t1, t2};
-        m.result = (t1>t2)?'1':(t1===t2)?'X':'2';
+        const ht1 = +document.querySelector('.scoreT1_1H').value;
+        const ht2 = +document.querySelector('.scoreT2_1H').value;
+        const ht1_2 = +document.querySelector('.scoreT1_2H').value;
+        const ht2_2 = +document.querySelector('.scoreT2_2H').value;
+        if (isNaN(ht1)||isNaN(ht2)||isNaN(ht1_2)||isNaN(ht2_2)) return alert('Введите все числа');
+        m.score_ht = { t1: ht1, t2: ht2 };
+        m.score = { t1: ht1 + ht1_2, t2: ht2 + ht2_2 };
+        m.result = (m.score.t1 > m.score.t2) ? '1' : (m.score.t1 === m.score.t2) ? 'X' : '2';
         m.archived = true;
-        window.users.forEach(u => (u.bets||[]).forEach(bet => {
-            if (bet.status !== 'pending') return;
-            if (bet.type === 'single' && bet.matchId === matchId) {
-                let win = false;
-                if (bet.outcome === 'TS') win = t1 === bet.exactScore.t1 && t2 === bet.exactScore.t2;
-                else if (['1','X','2'].includes(bet.outcome)) win = bet.outcome === m.result;
-                else if (bet.outcome === 'TB') win = (t1+t2)>2.5;
-                else if (bet.outcome === 'TM') win = (t1+t2)<2.5;
-                else if (bet.outcome === 'OZ') win = t1>0 && t2>0;
-                bet.status = win?'win':'lose';
-                if(win){ bet.winAmount = bet.amount*bet.odds; addBalanceWithLoan(u, bet.winAmount); }
-            } else if (bet.type === 'express') {
-                const allRes = bet.legs.every(l => { const m2 = window.matches.find(x => x.id === l.matchId); return m2 && m2.score; });
-                if (allRes) {
-                    const allWin = bet.legs.every(l => { 
-                        const m2 = window.matches.find(x => x.id === l.matchId);
-                        if (l.outcome === 'TS') return m2.score.t1 === l.exactScore.t1 && m2.score.t2 === l.exactScore.t2;
-                        if (['1','X','2'].includes(l.outcome)) return l.outcome === m2.result; 
-                        if (l.outcome === 'TB') return (m2.score.t1+m2.score.t2)>2.5; 
-                        if (l.outcome === 'TM') return (m2.score.t1+m2.score.t2)<2.5; 
-                        if (l.outcome === 'OZ') return m2.score.t1>0 && m2.score.t2>0; 
-                    });
-                    bet.status = allWin?'win':'lose';
-                    if(allWin){ bet.winAmount = bet.amount*bet.totalOdds; addBalanceWithLoan(u, bet.winAmount); }
-                }
-            }
-        }));
+        resolveBetsForMatch(m);
         await saveMatches(); await saveUsers();
-        await logAdminAction(`Ввёл счёт матча ${m.team1} — ${m.team2}: ${t1}:${t2}`);
+        await logAdminAction(`Ввёл счёт матча ${m.team1} — ${m.team2} (1Т ${ht1}:${ht2}, 2Т ${ht1_2}:${ht2_2})`);
         alert('Счёт сохранён, матч перемещён в архив, ставки рассчитаны');
         renderTab('adminManage');
     };
@@ -159,61 +161,47 @@ window._setMatchScore = function(matchId) {
 window._editMatchScore = function(matchId) {
     const m = window.matches.find(x => x.id === matchId);
     if (!m || !m.score) return;
+    const ht = m.score_ht || { t1: 0, t2: 0 };
+    const ht2_t1 = m.score.t1 - ht.t1;
+    const ht2_t2 = m.score.t2 - ht.t2;
     window.els.tab.innerHTML = `<div class="back-link" onclick="renderTab('adminManage')">← Назад</div><div class="section-title">Изменить счёт: ${m.team1} — ${m.team2}</div>
-        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
-            <input type="number" class="scoreT1" placeholder="${m.team1}" value="${m.score.t1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        <div style="margin:10px 0;"><strong>Первый тайм:</strong></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+            <input type="number" class="scoreT1_1H" value="${ht.t1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
             <span>:</span>
-            <input type="number" class="scoreT2" placeholder="${m.team2}" value="${m.score.t2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
-            <button class="action-btn" id="saveNewScoreBtn">Сохранить изменения</button>
-        </div>`;
+            <input type="number" class="scoreT2_1H" value="${ht.t2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        </div>
+        <div style="margin:10px 0;"><strong>Второй тайм:</strong></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:15px;">
+            <input type="number" class="scoreT1_2H" value="${ht2_t1}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+            <span>:</span>
+            <input type="number" class="scoreT2_2H" value="${ht2_t2}" style="width:60px;background:#0f0f1a;color:white;padding:10px;border-radius:12px;">
+        </div>
+        <button class="action-btn" id="saveNewScoreBtn">Сохранить изменения</button>`;
     document.getElementById('saveNewScoreBtn').onclick = async () => {
-        const t1 = +window.els.tab.querySelector('.scoreT1').value;
-        const t2 = +window.els.tab.querySelector('.scoreT2').value;
-        if (isNaN(t1)||isNaN(t2)) return alert('Введите числа');
-        const newScore = {t1, t2};
-        const newResult = (t1>t2)?'1':(t1===t2)?'X':'2';
+        const ht1 = +document.querySelector('.scoreT1_1H').value;
+        const ht2 = +document.querySelector('.scoreT2_1H').value;
+        const ht1_2 = +document.querySelector('.scoreT1_2H').value;
+        const ht2_2 = +document.querySelector('.scoreT2_2H').value;
+        if (isNaN(ht1)||isNaN(ht2)||isNaN(ht1_2)||isNaN(ht2_2)) return alert('Введите все числа');
+        const newScore_ht = { t1: ht1, t2: ht2 };
+        const newScore = { t1: ht1 + ht1_2, t2: ht2 + ht2_2 };
+        const newResult = (newScore.t1 > newScore.t2) ? '1' : (newScore.t1 === newScore.t2) ? 'X' : '2';
+        m.score_ht = newScore_ht;
         m.score = newScore;
         m.result = newResult;
         for (const u of window.users) {
-            let changed = false;
-            for (const bet of (u.bets || [])) {
-                if (bet.status === 'pending') continue;
-                let matchInBet = false;
-                if (bet.type === 'single' && bet.matchId === matchId) matchInBet = true;
-                else if (bet.type === 'express' && bet.legs.some(l => l.matchId === matchId)) matchInBet = true;
-                if (!matchInBet) continue;
-                if (bet.status === 'win') { u.balance -= bet.winAmount; u.balance += bet.amount; }
-                bet.status = 'pending';
-                if (bet.type === 'single') {
-                    let win = false;
-                    if (bet.outcome === 'TS') win = t1 === bet.exactScore.t1 && t2 === bet.exactScore.t2;
-                    else if (['1','X','2'].includes(bet.outcome)) win = bet.outcome === newResult;
-                    else if (bet.outcome === 'TB') win = (t1+t2) > 2.5;
-                    else if (bet.outcome === 'TM') win = (t1+t2) < 2.5;
-                    else if (bet.outcome === 'OZ') win = t1 > 0 && t2 > 0;
-                    bet.status = win ? 'win' : 'lose';
-                    if (win) { bet.winAmount = bet.amount * bet.odds; u.balance += bet.winAmount; }
-                } else if (bet.type === 'express') {
-                    const allRes = bet.legs.every(l => { const m2 = window.matches.find(x => x.id === l.matchId); return m2 && m2.score; });
-                    if (allRes) {
-                        const allWin = bet.legs.every(l => {
-                            const m2 = window.matches.find(x => x.id === l.matchId);
-                            if (l.outcome === 'TS') return m2.score.t1 === l.exactScore.t1 && m2.score.t2 === l.exactScore.t2;
-                            if (['1','X','2'].includes(l.outcome)) return l.outcome === m2.result;
-                            if (l.outcome === 'TB') return (m2.score.t1 + m2.score.t2) > 2.5;
-                            if (l.outcome === 'TM') return (m2.score.t1 + m2.score.t2) < 2.5;
-                            if (l.outcome === 'OZ') return m2.score.t1 > 0 && m2.score.t2 > 0;
-                        });
-                        bet.status = allWin ? 'win' : 'lose';
-                        if (allWin) { bet.winAmount = bet.amount * bet.totalOdds; u.balance += bet.winAmount; }
-                    }
+            (u.bets || []).forEach(bet => {
+                if (bet.matchId === matchId || (bet.legs && bet.legs.some(l => l.matchId === matchId))) {
+                    if (bet.status === 'win') { u.balance -= bet.winAmount; u.balance += bet.amount; }
+                    bet.status = 'pending';
+                    bet.winAmount = 0;
                 }
-                changed = true;
-            }
-            if (changed) checkLoanStatus(u);
+            });
         }
+        resolveBetsForMatch(m);
         await saveMatches(); await saveUsers();
-        await logAdminAction(`Изменил счёт матча ${m.team1} — ${m.team2} на ${t1}:${t2}`);
+        await logAdminAction(`Изменил счёт матча ${m.team1} — ${m.team2}`);
         alert('Счёт изменён, ставки пересчитаны');
         renderTab('adminManage');
     };
@@ -225,6 +213,10 @@ function renderAdminAdd() {
         <div class="input-group"><label>Команда 1 (хозяева)</label><input type="text" id="newTeam1" placeholder="Название"></div>
         <div class="input-group"><label>Команда 2 (гости)</label><input type="text" id="newTeam2" placeholder="Название"></div>
         <div class="input-group"><label>Коэф. точного счёта</label><input type="number" step="0.01" id="newOddsTS" value="7.0"></div>
+        <div class="input-group"><label>Коэф. 1-го тайма (П1/Х/П2/ТБ/ТМ/ОЗ/ТС через запятую, или пусто для авто)</label>
+        <input type="text" id="newOdds1H" placeholder="напр: 2.5,3.2,2.8,2.6,2.4,2.7,7.5"></div>
+        <div class="input-group"><label>Коэф. 2-го тайма (через запятую или пусто)</label>
+        <input type="text" id="newOdds2H" placeholder="напр: 2.7,3.5,3.0,2.8,2.6,2.9,8.0"></div>
         <div id="calculatedOdds" style="margin:15px 0; display:none;">
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 <div class="odd-block"><div>П1</div><div class="odd-value" id="odd1">—</div></div>
@@ -281,14 +273,28 @@ function renderAdminAdd() {
         const t1 = document.getElementById('newTeam1').value.trim();
         const t2 = document.getElementById('newTeam2').value.trim();
         const ts = +document.getElementById('newOddsTS').value || 7.0;
-        if (!t1 || !t2) return alert('Введите названия команд');
-        window.matches.push({
+
+        const parsePeriodOdds = (str) => {
+            const parts = str.split(',').map(Number);
+            if (parts.length !== 7) return null;
+            return {
+                '1': parts[0], 'X': parts[1], '2': parts[2],
+                'TB': parts[3], 'TM': parts[4], 'OZ': parts[5],
+                'TS': parts[6]
+            };
+        };
+        const odds1H = parsePeriodOdds(document.getElementById('newOdds1H').value);
+        const odds2H = parsePeriodOdds(document.getElementById('newOdds2H').value);
+
+        const matchObj = {
             id:'m_'+Date.now(), division:div, team1:t1, team2:t2, 
             odds:{ '1':odds['1'], 'X':odds['X'], '2':odds['2'] }, 
             odds_TB:odds['TB'], odds_TM:odds['TM'], odds_OZ:odds['OZ'], 
             odds_TS: ts,
-            status:'open', score:null, result:null, archived:false
-        });
+            status:'open', score:null, score_ht:null, result:null, archived:false,
+            odds_1H: odds1H, odds_2H: odds2H
+        };
+        window.matches.push(matchObj);
         await saveMatches(); await logAdminAction(`Добавил матч ${t1} — ${t2} в ${div}`);
         alert('Матч добавлен!');
         document.getElementById('newTeam1').value = ''; 
@@ -353,7 +359,7 @@ function renderAdminUsers() {
         const uid = b.dataset.uid;
         const msg = prompt('Введите сообщение для ' + uid + ':');
         if (msg) {
-            db.ref('personalNotifications/' + uid).set(msg);
+            window.db.ref('personalNotifications/' + uid).set(msg);
             alert('Отправлено!');
             logAdminAction(`Отправил личное сообщение пользователю ${uid}`);
         }
@@ -531,7 +537,7 @@ function renderAdminPush() {
         const body = document.getElementById('pushText').value.trim();
         if (!body) return alert('Введите текст уведомления');
         try {
-            await db.ref('pushMessages').push({
+            await window.db.ref('pushMessages').push({
                 title,
                 body,
                 to: 'all',

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TonBet — Ставки на ФТКЛ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
+<body>
+    <div class="app-container" id="appContainer">
+        <div id="welcomeScreen">
+            <div class="welcome-logo">TonBet</div>
+            <div class="welcome-text">TonBet – Официальный сайт новостника TonBox, для лиги ФТКЛ. На нашем сайте вы можете ставить ставки на матчи 2 и 3 дивизиона ФТКЛ! Зарабатывай коины, повышайся в топе и становись лучшим вместе с TonBet!</div>
+            <button class="continue-btn" id="continueBtn">Продолжить</button>
+        </div>
+        <div id="authBlock" class="hidden">
+            <div id="loginForm" class="auth-form">
+                <h2>Вход</h2>
+                <div class="input-group"><label>Никнейм</label><input type="text" id="loginUsername" placeholder="Введите ник"></div>
+                <div class="input-group"><label>Пароль</label><input type="password" id="loginPassword" placeholder="Введите пароль"></div>
+                <div class="input-group" style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="rememberMeCheckbox" style="width:auto;">
+                    <label for="rememberMeCheckbox" style="margin:0; color:var(--text-secondary);">Запомнить меня</label>
+                </div>
+                <button class="auth-btn" id="loginBtn">Войти</button>
+                <div class="toggle-link">Нет аккаунта? <a id="showRegisterLink">Зарегистрироваться</a></div>
+                <div class="error-msg" id="loginError"></div>
+            </div>
+            <div id="registerForm" class="auth-form hidden">
+                <h2>Регистрация</h2>
+                <div class="input-group"><label>Никнейм</label><input type="text" id="regUsername" placeholder="Придумайте ник"></div>
+                <div class="input-group"><label>Пароль</label><input type="password" id="regPassword" placeholder="Пароль"></div>
+                <div class="input-group"><label>Подтвердите пароль</label><input type="password" id="regConfirmPassword" placeholder="Повторите пароль"></div>
+                <button class="auth-btn" id="registerBtn">Зарегистрироваться</button>
+                <div class="toggle-link">Уже есть аккаунт? <a id="showLoginLink">Войти</a></div>
+                <div class="error-msg" id="regError"></div>
+            </div>
+        </div>
+        <div id="mainInterface" class="hidden">
+            <div class="main-header">
+                <div class="logo-small">TonBet</div>
+                <div class="header-right" id="headerRight"></div>
+            </div>
+            <div id="tabContent" class="tab-content"></div>
+        </div>
+    </div>
+    <div id="bottomNav" class="bottom-nav hidden">
+        <div class="nav-item active" data-tab="matches"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/></svg>Матчи</div>
+        <div class="nav-item" data-tab="express"><svg viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Экспресс</div>
+        <div class="nav-item" data-tab="mybets"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Мои ставки</div>
+        <div class="nav-item" data-tab="promo"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>Промокод</div>
+        <div class="nav-item" data-tab="profile"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Профиль</div>
+        <div class="nav-item" data-tab="news"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Инфо</div>
+        <div class="nav-item" data-tab="leaderboard"><svg viewBox="0 0 24 24"><path d="M6 9l6-6 6 6"/><path d="M6 15l6 6 6-6"/></svg>Топ 10</div>
+        <div class="nav-item" data-tab="credit"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Кредит</div>
+    </div>
+    <div id="adminBottomNav" class="bottom-nav hidden">
+        <div class="nav-item active" data-tab="adminManage">Матчи</div>
+        <div class="nav-item" data-tab="adminAdd">Добавить</div>
+        <div class="nav-item" data-tab="adminUsers">Пользователи</div>
+        <div class="nav-item" data-tab="adminClubs">Клубы</div>
+        <div class="nav-item" data-tab="adminPromo">Промокоды</div>
+        <div class="nav-item" data-tab="adminNews">Новости</div>
+        <div class="nav-item" data-tab="adminLog">Лог</div>
+        <div class="nav-item" data-tab="adminPush">Уведы</div>
+        <div class="nav-item" data-tab="adminExport">Экспорт</div>
+        <div class="nav-item" data-tab="adminCredits">Кредиты</div>
+    </div>
+    <div id="workerBottomNav" class="bottom-nav hidden">
+        <div class="nav-item active" data-tab="adminManage">Матчи</div>
+        <div class="nav-item" data-tab="adminAdd">Добавить</div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/user.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

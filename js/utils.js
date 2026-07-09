@@ -1,9 +1,9 @@
 const DIVISIONS = ['ФТКЛ 2', 'ФТКЛ 3'];
 const normName = n => n.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
-// Множители для таймов: отдельно для исходов (1X2), тоталов (TB/TM/OZ) и точного счёта
+// Умеренные множители для таймов
 const PERIOD_MULTIPLIERS = {
-    '1H': { outcome: 1.15, total: 1.2, ts: 1.3 },
-    '2H': { outcome: 1.25, total: 1.3, ts: 1.4 }
+    '1H': { outcome: 1.10, draw: 1.05, total: 1.15, ts: 1.20 },
+    '2H': { outcome: 1.15, draw: 1.10, total: 1.20, ts: 1.30 }
 };
 
 function getTeamStats(teamName) {
@@ -153,7 +153,6 @@ function getOddsForPeriod(match, outcome, period) {
         return match.odds[outcome];
     }
     const mult = PERIOD_MULTIPLIERS[period];
-    // Определяем тип исхода
     let baseOdds;
     if (outcome === 'TS') {
         baseOdds = match.odds_TS;
@@ -165,7 +164,11 @@ function getOddsForPeriod(match, outcome, period) {
     }
     // исходы 1, X, 2
     baseOdds = match.odds[outcome];
-    return (match.odds && match.odds[period] && match.odds[period][outcome]) || (baseOdds * mult.outcome);
+    if (outcome === 'X') {
+        return (match.odds && match.odds[period] && match.odds[period]['X']) || (baseOdds * mult.draw);
+    } else {
+        return (match.odds && match.odds[period] && match.odds[period][outcome]) || (baseOdds * mult.outcome);
+    }
 }
 
 function resolveBetsForMatch(match) {
@@ -213,7 +216,7 @@ function resolveBetsForMatch(match) {
     });
 }
 
-// Кредитная система (без изменений)
+// Кредитная система и push-уведомления (без изменений)
 function getLoanDetails(user) {
     if (!user || !user.loanAmount || user.loanAmount <= 0) return null;
     const now = Date.now();

@@ -27,7 +27,7 @@ function renderExpress() {
         const selMatches = window.expressState.sel.map(id => window.matches.find(m => m.id === id && m.status === 'open')).filter(m => m);
         const idx = Object.keys(window.expressState.outcomes).length;
         if (idx >= selMatches.length) {
-            let tot = 1; selMatches.forEach(m => { const out = window.expressState.outcomes[m.id]; let o = (typeof out === 'object' && out.type === 'TS') ? m.odds_TS : (out === 'TB' ? m.odds_TB : out === 'TM' ? m.odds_TM : out === 'OZ' ? m.odds_OZ : m.odds[out]); tot *= o; });
+            let tot = 1; selMatches.forEach(m => { const out = window.expressState.outcomes[m.id]; let o = (typeof out === 'object' && out.type === 'TS') ? getOddsForPeriod(m, 'TS', window.expressState.period) : (out === 'TB' ? getOddsForPeriod(m, 'TB', window.expressState.period) : out === 'TM' ? getOddsForPeriod(m, 'TM', window.expressState.period) : out === 'OZ' ? getOddsForPeriod(m, 'OZ', window.expressState.period) : getOddsForPeriod(m, out, window.expressState.period)); tot *= o; });
             window.expressState.totalOdds = +tot.toFixed(2); window.expressState.step = 'bet'; renderExpress(); return;
         }
         const m = selMatches[idx];
@@ -58,12 +58,16 @@ function renderExpress() {
                     <div class="odd-block" data-out="OZ"><div>ОЗ</div><div class="odd-value">${oddsOZ}</div></div>
                     <div class="odd-block" data-out="TS"><div>Точный счёт</div><div class="odd-value">${oddsTS}</div></div>
                 </div>`;
+
+            // Обработчики кнопок периода
             document.querySelectorAll('.period-btn').forEach(btn => {
                 btn.onclick = () => {
                     window.expressState.period = btn.dataset.period;
-                    renderOutcomes();
+                    renderOutcomes(); // перерисовать с новым периодом
                 };
             });
+
+            // Обработчики выбора исхода
             window.els.tab.querySelectorAll('.odd-block').forEach(b => b.onclick = function() {
                 const out = this.dataset.out;
                 if (out === 'TS') {
@@ -78,36 +82,45 @@ function renderExpress() {
             });
         };
         renderOutcomes();
-        window.els.tab.querySelector('.back-link').onclick = () => { window.expressState.step = 'matches'; renderExpress(); };
+        window.els.tab.querySelector('.back-link').onclick = () => { 
+            window.expressState.step = 'matches'; 
+            window.expressState.period = 'match'; // сброс периода при возврате
+            renderExpress(); 
+        };
     } else if (window.expressState.step === 'bet') {
         window.els.tab.innerHTML = `<div class="back-link">← Изменить исходы</div><div class="section-title">Коэффициент: ${window.expressState.totalOdds.toFixed(2)}</div>
             <div style="display:flex;gap:10px;align-items:center;margin-top:20px;">
                 <input type="number" class="bet-amount-input" id="expAmount" placeholder="Сумма" min="1">
                 <button class="action-btn" id="placeExpBet">Сделать ставку</button>
             </div>`;
-        window.els.tab.querySelector('.back-link').onclick = () => { window.expressState.step = 'outcomes'; window.expressState.outcomes = {}; renderExpress(); };
+        window.els.tab.querySelector('.back-link').onclick = () => { 
+            window.expressState.step = 'outcomes'; 
+            window.expressState.outcomes = {}; 
+            renderExpress(); 
+        };
         window.els.tab.querySelector('#placeExpBet').onclick = async () => {
             const user = getCurrentUser(); if (!user) return;
             const amount = +window.els.tab.querySelector('#expAmount').value;
             if (isNaN(amount) || amount <= 0) return alert('Некорректная сумма');
             if (amount > user.balance) return alert('Недостаточно средств');
             if (user.frozenUntil > Date.now()) return alert('Ставки заморожены до ' + new Date(user.frozenUntil).toLocaleString());
+            const period = window.expressState.period; // запомнили период
             const legs = window.expressState.sel.map(id => { 
                 const m = window.matches.find(x => x.id === id); 
                 const outData = window.expressState.outcomes[id];
                 let outcome, odds, exactScore = null;
                 if (typeof outData === 'object' && outData.type === 'TS') {
                     outcome = 'TS';
-                    odds = getOddsForPeriod(m, 'TS', window.expressState.period);
+                    odds = getOddsForPeriod(m, 'TS', period);
                     exactScore = outData.exactScore;
                 } else {
                     outcome = outData;
-                    odds = getOddsForPeriod(m, outcome, window.expressState.period);
+                    odds = getOddsForPeriod(m, outcome, period);
                 }
-                return { matchId: id, team1: m.team1, team2: m.team2, outcome, odds, exactScore, period: window.expressState.period };
+                return { matchId: id, team1: m.team1, team2: m.team2, outcome, odds, exactScore, period };
             });
             user.balance -= amount;
-            user.bets.push({ type: 'express', legs, totalOdds: window.expressState.totalOdds, amount, status: 'pending', winAmount:0, period: window.expressState.period });
+            user.bets.push({ type: 'express', legs, totalOdds: window.expressState.totalOdds, amount, status: 'pending', winAmount:0, period });
             await saveUsers();
             alert('Ставка принята!');
             window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0, period:'match' };

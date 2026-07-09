@@ -303,7 +303,7 @@ function renderProfile() {
         const hasSub = await checkPushSubscription();
         if (hasSub) {
             if (confirm('Отключить уведомления?')) {
-                await db.ref(`pushSubscriptions/${window.currentUsername}`).remove();
+                await window.db.ref(`pushSubscriptions/${window.currentUsername}`).remove();
                 renderProfile();
             }
         } else {

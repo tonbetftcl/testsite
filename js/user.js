@@ -1,17 +1,46 @@
 window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0, period:'match' };
 window.matchState = { view:'divisions', div:null, match:null, period:'match' };
 
-// Единый обработчик кликов по кнопкам периода
+// Единый обработчик для всех back-link и period-btn
 document.addEventListener('click', function(e) {
+    // Кнопки периода (таймов)
     const periodBtn = e.target.closest('.period-btn');
-    if (!periodBtn) return;
-    const period = periodBtn.dataset.period;
-    if (window.expressState.step === 'outcomes') {
-        window.expressState.period = period;
-        renderExpress();
-    } else if (window.matchState.view === 'bet') {
-        window.matchState.period = period;
-        renderMatches();
+    if (periodBtn) {
+        const period = periodBtn.dataset.period;
+        if (window.expressState.step === 'outcomes') {
+            window.expressState.period = period;
+            renderExpress();
+        } else if (window.matchState.view === 'bet') {
+            window.matchState.period = period;
+            renderMatches();
+        }
+        return;
+    }
+
+    // Кнопки "Назад" / "Вернуться"
+    const backLink = e.target.closest('.back-link');
+    if (backLink) {
+        // Экспресс
+        if (window.expressState.step === 'outcomes') {
+            window.expressState.step = 'matches';
+            renderExpress();
+        } else if (window.expressState.step === 'bet') {
+            window.expressState.step = 'outcomes';
+            window.expressState.outcomes = {};
+            renderExpress();
+        } else if (window.expressState.step === 'matches') {
+            window.expressState.step = 'divisions';
+            renderExpress();
+        }
+        // Ординар
+        else if (window.matchState.view === 'bet') {
+            window.matchState.view = 'matches';
+            renderMatches();
+        } else if (window.matchState.view === 'matches') {
+            window.matchState.view = 'divisions';
+            renderMatches();
+        }
+        return;
     }
 });
 
@@ -23,7 +52,6 @@ function renderExpress() {
     } else if (window.expressState.step === 'matches') {
         const allNotArchived = window.matches.filter(m => m.division === window.expressState.div && !m.archived);
         window.els.tab.innerHTML = `<div class="back-link">← Назад</div><div class="section-title">Экспресс – ${window.expressState.div}</div><div class="match-list"></div><button class="action-btn" id="readyBtn" disabled>Готово (0)</button>`;
-        window.els.tab.querySelector('.back-link').onclick = () => { window.expressState.step = 'divisions'; renderExpress(); };
         const list = window.els.tab.querySelector('.match-list');
         if (allNotArchived.length === 0) list.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px;">Нет матчей</div>';
         else allNotArchived.forEach(m => {
@@ -100,14 +128,12 @@ function renderExpress() {
             });
         };
         renderOutcomes();
-        window.els.tab.querySelector('.back-link').onclick = () => { window.expressState.step = 'matches'; renderExpress(); };
     } else if (window.expressState.step === 'bet') {
         window.els.tab.innerHTML = `<div class="back-link">← Изменить исходы</div><div class="section-title">Коэффициент: ${window.expressState.totalOdds.toFixed(2)}</div>
             <div style="display:flex;gap:10px;align-items:center;margin-top:20px;">
                 <input type="number" class="bet-amount-input" id="expAmount" placeholder="Сумма" min="1">
                 <button class="action-btn" id="placeExpBet">Сделать ставку</button>
             </div>`;
-        window.els.tab.querySelector('.back-link').onclick = () => { window.expressState.step = 'outcomes'; window.expressState.outcomes = {}; renderExpress(); };
         window.els.tab.querySelector('#placeExpBet').onclick = async () => {
             const user = getCurrentUser(); if (!user) return;
             const amount = +window.els.tab.querySelector('#expAmount').value;
@@ -147,7 +173,6 @@ function renderMatches() {
     } else if (window.matchState.view === 'matches') {
         const list = window.matches.filter(m => m.division === window.matchState.div && !m.archived);
         window.els.tab.innerHTML = `<div class="back-link">← Назад</div><div class="section-title">${window.matchState.div}</div><div class="match-list"></div>`;
-        window.els.tab.querySelector('.back-link').onclick = () => { window.matchState.view = 'divisions'; renderMatches(); };
         const ml = window.els.tab.querySelector('.match-list');
         if (list.length === 0) ml.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px;">Нет матчей</div>';
         else list.forEach(m => {
@@ -236,7 +261,6 @@ function renderMatches() {
             };
         };
         renderBetContent();
-        window.els.tab.querySelector('.back-link').onclick = () => { window.matchState.view = 'matches'; renderMatches(); };
     }
 }
 

@@ -667,12 +667,15 @@ function renderAdminPush() {
         const body = document.getElementById('pushText').value.trim();
         if (!body) return alert('Введите текст уведомления');
         try {
+            // Отправляем push-сообщение
             await window.db.ref('pushMessages').push({
                 title,
                 body,
                 to: 'all',
                 timestamp: Date.now()
             });
+            // Дублируем в общее уведомление, чтобы модальное окно появилось сразу
+            await window.db.ref('notification').set(body);
             document.getElementById('pushSendStatus').innerHTML = '<span style="color:var(--success);">Отправлено!</span>';
             await logAdminAction(`Отправил push-уведомление: ${body}`);
         } catch (e) {

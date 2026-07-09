@@ -256,7 +256,7 @@ async function requestPushPermission() {
     try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-            await db.ref(`pushSubscriptions/${window.currentUsername}`).set({
+            await window.db.ref(`pushSubscriptions/${window.currentUsername}`).set({
                 subscribed: true,
                 timestamp: Date.now()
             });
@@ -271,6 +271,6 @@ async function requestPushPermission() {
 
 async function checkPushSubscription() {
     if (!window.currentUsername) return false;
-    const snap = await db.ref(`pushSubscriptions/${window.currentUsername}`).once('value');
+    const snap = await window.db.ref(`pushSubscriptions/${window.currentUsername}`).once('value');
     return snap.exists();
 }

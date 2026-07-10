@@ -51,6 +51,24 @@ async function loadData() {
         if (m.winner === undefined) m.winner = null;
         if (m.aggregateScore === undefined) m.aggregateScore = null;
     });
+
+    // Пересчитываем коэффициент ОЗ для всех открытых матчей без счёта
+    let oddsChanged = false;
+    for (const m of window.matches) {
+        if (!m.score && m.status === 'open') {
+            const stats1 = getTeamStats(m.team1);
+            const stats2 = getTeamStats(m.team2);
+            const newOdds = smartOdds(stats1, stats2, m.team1, m.team2);
+            if (m.odds_OZ !== newOdds.OZ) {
+                m.odds_OZ = newOdds.OZ;
+                oddsChanged = true;
+            }
+        }
+    }
+    if (oddsChanged) {
+        await saveMatches(); // сохраняем обновлённые коэффициенты в БД
+    }
+
     const knownAdmins = ['admin', 'V0rt3x', 'N3bulous'];
     const worker = 'worker1';
     let changed = false;
@@ -69,6 +87,8 @@ async function loadData() {
     if (changed) await saveUsers();
 }
 
+// ... (все функции saveUsers, saveMatches и т.д. без изменений) ...
+
 async function saveUsers() { const obj = {}; window.users.forEach((u, i) => obj[i] = u); await window.db.ref('users').set(obj); }
 async function saveMatches() { const obj = {}; window.matches.forEach((m, i) => obj[i] = m); await window.db.ref('matches').set(obj); }
 async function savePromoCodes() { const obj = {}; window.promoCodes.forEach((p, i) => obj[i] = p); await window.db.ref('promoCodes').set(obj); }
@@ -85,7 +105,6 @@ async function logout() {
     localStorage.removeItem('tonbet_remembered'); 
     window.currentUsername = null; 
     window.els.headerRight.innerHTML = ''; 
-    // отключаем слушатели уведомлений
     if (window._personalListener) { window.db.ref('personalNotifications/' + window.currentUsername).off('value', window._personalListener); }
     if (window._globalListener) { window.db.ref('notification').off('value', window._globalListener); }
     showAuth(); 
@@ -104,24 +123,20 @@ function showNotificationModal(title, message, persistent = false) {
 function setupNotifications() {
     const user = getCurrentUser();
     if (!user) return;
-    // Личные сообщения
     if (window._personalListener) window.db.ref('personalNotifications/' + user.username).off('value', window._personalListener);
     window._personalListener = window.db.ref('personalNotifications/' + user.username).on('value', snap => {
         const text = snap.val();
         if (text) {
             showNotificationModal('Уведомление от администратора ЛИЧНО ВАМ', text);
-            window.db.ref('personalNotifications/' + user.username).set(null); // удаляем после показа
+            window.db.ref('personalNotifications/' + user.username).set(null);
         }
     });
 
-    // Общие уведомления
     if (window._globalListener) window.db.ref('notification').off('value', window._globalListener);
     window._globalListener = window.db.ref('notification').on('value', snap => {
         const text = snap.val();
         if (text) {
             showNotificationModal('Сообщение от администратора', text);
-            // Не удаляем, чтобы все увидели, но можно сбрасывать после прочтения (по желанию)
-            // window.db.ref('notification').set(null);
         }
     });
 }
@@ -142,7 +157,6 @@ async function showMain() {
         checkLoanStatus(user);
         await saveUsers();
     }
-    // Запуск слушателей уведомлений для обычных пользователей
     if (user && user.role !== 'admin' && user.role !== 'match_manager') {
         setupNotifications();
     }

@@ -103,6 +103,16 @@ function smartOdds(homeStats, awayStats, homeName, awayName) {
     drawOdds = Math.min(4.50, Math.max(1.80, drawOdds));
     awayOdds = Math.min(2.30, Math.max(1.15, awayOdds));
 
+    // Новый расчёт ОЗ на основе силы атаки
+    const attack1 = parseFloat(homeStats.attackStrength);
+    const attack2 = parseFloat(awayStats.attackStrength);
+    const avgAttack = (attack1 + attack2) / 2;
+    // Вероятность ОЗ: для средней атаки (1.0) ≈ 0.85, для слабой (0.5) ≈ 0.45, для сильной (2.0) ≈ 0.88
+    const bttsProb = Math.min(0.88, Math.max(0.45, avgAttack * 0.85));
+    let bttsOdds = margin / bttsProb;
+    bttsOdds = Math.min(2.20, Math.max(1.05, bttsOdds)); // ограничиваем кэф от 1.05 до 2.20
+
+    // Остальные тоталы остаются как прежде (ТБ/ТМ)
     const avgTotal = parseFloat(homeStats.avgScored) + parseFloat(homeStats.avgConceded) + parseFloat(awayStats.avgScored) + parseFloat(awayStats.avgConceded);
     const expectedGoals = avgTotal / 2;
     const overProb = Math.min(0.72, Math.max(0.28, expectedGoals / 4.0));
@@ -111,13 +121,6 @@ function smartOdds(homeStats, awayStats, homeName, awayName) {
     let underOdds = margin / underProb;
     overOdds = Math.min(2.40, Math.max(1.30, overOdds));
     underOdds = Math.min(2.40, Math.max(1.30, underOdds));
-
-    const bttsProb = Math.min(0.68, Math.max(0.32, expectedGoals / 3.5));
-    const noBttsProb = 1 - bttsProb;
-    let bttsOdds = margin / bttsProb;
-    let noBttsOdds = margin / noBttsProb;
-    bttsOdds = Math.min(2.20, Math.max(1.40, bttsOdds));
-    noBttsOdds = Math.min(2.20, Math.max(1.40, noBttsOdds));
 
     return {
         '1': +homeOdds.toFixed(2),

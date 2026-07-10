@@ -1,8 +1,9 @@
 const DIVISIONS = ['ФТКЛ 2', 'ФТКЛ 3'];
 const normName = n => n.trim().toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е');
+// Множители для таймов: для ОЗ используются очень маленькие, чтобы не раздувать кэф
 const PERIOD_MULTIPLIERS = {
-    '1H': { outcome: 1.10, draw: 1.05, total: 1.15, ts: 1.20 },
-    '2H': { outcome: 1.15, draw: 1.10, total: 1.20, ts: 1.30 }
+    '1H': { outcome: 1.10, draw: 1.05, total: 1.08, ts: 1.20 },
+    '2H': { outcome: 1.15, draw: 1.10, total: 1.12, ts: 1.30 }
 };
 
 function getTeamStats(teamName) {
@@ -103,16 +104,16 @@ function smartOdds(homeStats, awayStats, homeName, awayName) {
     drawOdds = Math.min(4.50, Math.max(1.80, drawOdds));
     awayOdds = Math.min(2.30, Math.max(1.15, awayOdds));
 
-    // Новый расчёт ОЗ на основе силы атаки
+    // Новый расчёт ОЗ: зависит от силы атаки обеих команд
     const attack1 = parseFloat(homeStats.attackStrength);
     const attack2 = parseFloat(awayStats.attackStrength);
     const avgAttack = (attack1 + attack2) / 2;
-    // Вероятность ОЗ: для средней атаки (1.0) ≈ 0.85, для слабой (0.5) ≈ 0.45, для сильной (2.0) ≈ 0.88
-    const bttsProb = Math.min(0.88, Math.max(0.45, avgAttack * 0.85));
+    // Средняя атака 1.0 → вероятность ОЗ 0.85, даёт кэф ~1.08
+    const bttsProb = Math.min(0.88, Math.max(0.40, 0.55 + avgAttack * 0.3));
     let bttsOdds = margin / bttsProb;
-    bttsOdds = Math.min(2.20, Math.max(1.05, bttsOdds)); // ограничиваем кэф от 1.05 до 2.20
+    bttsOdds = Math.min(1.60, Math.max(1.05, bttsOdds)); // кэф от 1.05 до 1.60
 
-    // Остальные тоталы остаются как прежде (ТБ/ТМ)
+    // Тоталы (ТБ/ТМ) – без изменений
     const avgTotal = parseFloat(homeStats.avgScored) + parseFloat(homeStats.avgConceded) + parseFloat(awayStats.avgScored) + parseFloat(awayStats.avgConceded);
     const expectedGoals = avgTotal / 2;
     const overProb = Math.min(0.72, Math.max(0.28, expectedGoals / 4.0));

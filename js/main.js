@@ -87,8 +87,6 @@ async function loadData() {
     if (changed) await saveUsers();
 }
 
-// ... (все функции saveUsers, saveMatches и т.д. без изменений) ...
-
 async function saveUsers() { const obj = {}; window.users.forEach((u, i) => obj[i] = u); await window.db.ref('users').set(obj); }
 async function saveMatches() { const obj = {}; window.matches.forEach((m, i) => obj[i] = m); await window.db.ref('matches').set(obj); }
 async function savePromoCodes() { const obj = {}; window.promoCodes.forEach((p, i) => obj[i] = p); await window.db.ref('promoCodes').set(obj); }
@@ -238,6 +236,8 @@ document.querySelectorAll('#workerBottomNav .nav-item').forEach(item => item.onc
 });
 
 window.onload = async () => {
+    document.body.classList.add('purple-theme'); // Включаем фиолетовый дизайн
+
     await loadData();
     if (!window.currentUsername) {
         const remembered = localStorage.getItem('tonbet_remembered');

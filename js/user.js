@@ -50,7 +50,11 @@ function renderExpress() {
         const grid = window.els.tab.querySelector('.division-grid');
         DIVISIONS.forEach(d => { const c = document.createElement('div'); c.className = 'division-card'; c.textContent = d; c.onclick = () => { window.expressState.div = d; window.expressState.step = 'matches'; renderExpress(); }; grid.appendChild(c); });
     } else if (window.expressState.step === 'matches') {
-        const allNotArchived = window.matches.filter(m => m.division === window.expressState.div && !m.archived);
+        const allNotArchived = window.matches.filter(m => 
+            m.division === window.expressState.div && 
+            !m.archived && 
+            (m.team1 === 'РФК Зага' || m.team2 === 'РФК Зага')
+        );
         window.els.tab.innerHTML = `<div class="back-link">← Назад</div><div class="section-title">Экспресс – ${window.expressState.div}</div><div class="match-list"></div><button class="action-btn" id="readyBtn" disabled>Готово (0)</button>`;
         const list = window.els.tab.querySelector('.match-list');
         if (allNotArchived.length === 0) list.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px;">Нет матчей</div>';
@@ -171,7 +175,11 @@ function renderMatches() {
         const grid = window.els.tab.querySelector('.division-grid');
         DIVISIONS.forEach(d => { const c = document.createElement('div'); c.className = 'division-card'; c.textContent = d; c.onclick = () => { window.matchState.div = d; window.matchState.view = 'matches'; renderMatches(); }; grid.appendChild(c); });
     } else if (window.matchState.view === 'matches') {
-        const list = window.matches.filter(m => m.division === window.matchState.div && !m.archived);
+        const list = window.matches.filter(m => 
+            m.division === window.matchState.div && 
+            !m.archived && 
+            (m.team1 === 'РФК Зага' || m.team2 === 'РФК Зага')
+        );
         window.els.tab.innerHTML = `<div class="back-link">← Назад</div><div class="section-title">${window.matchState.div}</div><div class="match-list"></div>`;
         const ml = window.els.tab.querySelector('.match-list');
         if (list.length === 0) ml.innerHTML = '<div style="color:#aaa;text-align:center;padding:20px;">Нет матчей</div>';
@@ -454,9 +462,13 @@ function renderProfile() {
 
 function renderNews() {
     let html = '<div class="section-title">Новости</div>';
-    if (window.newsList.length === 0) html += '<p style="color:#aaa;">Новостей пока нет</p>';
+    
+    // Reverse the list and strictly cap visible news updates at 3
+    const visibleNews = window.newsList.slice().reverse().slice(0, 3);
+    
+    if (visibleNews.length === 0) html += '<p style="color:#aaa;">Новостей пока нет</p>';
     else {
-        window.newsList.slice().reverse().forEach(n => {
+        visibleNews.forEach(n => {
             html += `<div class="news-item" data-idx="${n.id}">${n.title}</div><div class="news-detail hidden" id="nd${n.id}">${n.text}</div>`;
         });
     }

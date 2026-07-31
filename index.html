@@ -3,88 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TonBet — Ставки на ФТКЛ</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css">
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <title>TonBet</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="bg-animated-blobs">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
+    <div id="app">
+        <header class="header">
+            <div class="logo">TonBet</div>
+            <div class="season-badge">6 Сезон</div>
+            <div id="userHeaderInfo" class="user-header-info"></div>
+        </header>
+
+        <main id="tabContent" class="tab-content"></main>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="matches">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                <span>Матчи</span>
+            </button>
+            <button class="nav-btn" data-tab="express">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <span>Экспресс</span>
+            </button>
+            <button class="nav-btn" data-tab="mybets">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <span>Мои Ставки</span>
+            </button>
+            <button class="nav-btn" data-tab="transfers">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <span>Переводы</span>
+            </button>
+            <button class="nav-btn" data-tab="promo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                <span>Промо</span>
+            </button>
+            <button class="nav-btn" data-tab="leaderboard">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-2.34"/><path d="M14 14.66V17c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.34"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+                <span>Топ</span>
+            </button>
+            <button class="nav-btn" data-tab="news">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1m2 13a2 2 0 0 1-2-2V7m2 13a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2m-4-3H9M9 9h6m-6 4h6m-6 4h4"/></svg>
+                <span>Новости</span>
+            </button>
+            <button class="nav-btn" data-tab="profile">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Профиль</span>
+            </button>
+        </nav>
     </div>
 
-    <div class="app-container" id="appContainer">
-        <div id="welcomeScreen">
-            <div class="welcome-logo">TonBet</div>
-            <div class="welcome-text">TonBet – Официальный сайт новостника TonBox, для лиги ФТКЛ. На нашем сайте вы можете ставить ставки на матчи 2 и 3 дивизиона ФТКЛ! Зарабатывай коины, повышайся в топе и становись лучшим вместе с TonBet!</div>
-            <button class="continue-btn glass-btn" id="continueBtn">Продолжить</button>
-        </div>
-        <div id="authBlock" class="hidden">
-            <div id="loginForm" class="auth-form glass-panel">
-                <h2>Вход</h2>
-                <div class="input-group"><label>Никнейм</label><input type="text" id="loginUsername" placeholder="Введите ник"></div>
-                <div class="input-group"><label>Пароль</label><input type="password" id="loginPassword" placeholder="Введите пароль"></div>
-                <div class="input-group checkbox-group">
-                    <input type="checkbox" id="rememberMeCheckbox">
-                    <label for="rememberMeCheckbox">Запомнить меня</label>
-                </div>
-                <button class="auth-btn glass-btn" id="loginBtn">Войти</button>
-                <div class="toggle-link">Нет аккаунта? <a id="showRegisterLink">Зарегистрироваться</a></div>
-                <div class="error-msg" id="loginError"></div>
-            </div>
-            <div id="registerForm" class="auth-form glass-panel hidden">
-                <h2>Регистрация</h2>
-                <div class="input-group"><label>Никнейм</label><input type="text" id="regUsername" placeholder="Придумайте ник"></div>
-                <div class="input-group"><label>Пароль</label><input type="password" id="regPassword" placeholder="Пароль"></div>
-                <div class="input-group"><label>Подтвердите пароль</label><input type="password" id="regConfirmPassword" placeholder="Повторите пароль"></div>
-                <button class="auth-btn glass-btn" id="registerBtn">Зарегистрироваться</button>
-                <div class="toggle-link">Уже есть аккаунт? <a id="showLoginLink">Войти</a></div>
-                <div class="error-msg" id="regError"></div>
-            </div>
-        </div>
-        <div id="mainInterface" class="hidden">
-            <div class="main-header">
-                <div class="logo-small">TonBet</div>
-                <div class="header-right" id="headerRight"></div>
-            </div>
-            <div id="tabContent" class="tab-content"></div>
-        </div>
-    </div>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <div id="bottomNav" class="bottom-nav glass-nav hidden">
-        <div class="nav-item active" data-tab="matches"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/></svg>Матчи</div>
-        <div class="nav-item" data-tab="express"><svg viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Экспресс</div>
-        <div class="nav-item" data-tab="mybets"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Мои ставки</div>
-        <div class="nav-item" data-tab="promo"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>Промокод</div>
-        <div class="nav-item" data-tab="profile"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Профиль</div>
-        <div class="nav-item" data-tab="news"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Инфо</div>
-        <div class="nav-item" data-tab="leaderboard"><svg viewBox="0 0 24 24"><path d="M6 9l6-6 6 6"/><path d="M6 15l6 6 6-6"/></svg>Топ 10</div>
-        <div class="nav-item" data-tab="credit"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Кредит</div>
-    </div>
-
-    <div id="adminBottomNav" class="bottom-nav glass-nav hidden">
-        <div class="nav-item active" data-tab="adminManage">Матчи</div>
-        <div class="nav-item" data-tab="adminAdd">Добавить</div>
-        <div class="nav-item" data-tab="adminUsers">Пользователи</div>
-        <div class="nav-item" data-tab="adminClubs">Клубы</div>
-        <div class="nav-item" data-tab="adminPromo">Промокоды</div>
-        <div class="nav-item" data-tab="adminNews">Новости</div>
-        <div class="nav-item" data-tab="adminLog">Лог</div>
-        <div class="nav-item" data-tab="adminPush">Уведы</div>
-        <div class="nav-item" data-tab="adminExport">Экспорт</div>
-        <div class="nav-item" data-tab="adminCredits">Кредиты</div>
-    </div>
-    <div id="workerBottomNav" class="bottom-nav glass-nav hidden">
-        <div class="nav-item active" data-tab="adminManage">Матчи</div>
-        <div class="nav-item" data-tab="adminAdd">Добавить</div>
-    </div>
-
-    <script src="js/firebase-config.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/user.js"></script>
-    <script src="js/admin.js"></script>
-    <script src="js/main.js"></script>
+    <!-- App Scripts -->
+    <script src="utils.js"></script>
+    <script src="user.js"></script>
+    <script src="admin.js"></script>
+    <script src="Main.js"></script>
 </body>
 </html>

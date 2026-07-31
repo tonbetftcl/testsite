@@ -1,6 +1,6 @@
-window.users = [], window.matches = [], window.promoCodes = [], window.promoLog = [], window.adminLog = [], window.newsList = [], window.loanLogs = [];
+window.users = []; window.matches = []; window.promoCodes = []; window.promoLog = []; window.adminLog = []; window.newsList = []; window.loanLogs = [];
 window.currentUsername = sessionStorage.getItem('tonbet_current') || null;
-window.currentFilter = 'all', window.currentTab = 'matches';
+window.currentFilter = 'all'; window.currentTab = 'matches';
 window.adminDivision = 'ФТКЛ 2';
 
 window.els = {
@@ -26,6 +26,7 @@ async function loadData() {
     window.adminLog = adminLogSnap.val() ? Object.values(adminLogSnap.val()) : [];
     window.newsList = newsSnap.val() ? Object.values(newsSnap.val()) : [];
     window.loanLogs = loanSnap.val() ? Object.values(loanSnap.val()) : [];
+    
     window.users.forEach(u => {
         u.bets = u.bets || [];
         if (!u.activatedPromos) u.activatedPromos = [];
@@ -38,6 +39,7 @@ async function loadData() {
         if (u.frozenUntil === undefined || u.frozenUntil === null) u.frozenUntil = 0;
         if (u.trustRecoveryTimestamp === undefined || u.trustRecoveryTimestamp === null) u.trustRecoveryTimestamp = 0;
     });
+    
     window.matches.forEach(m => { 
         if (m.archived === undefined) m.archived = false; 
         if (m.odds_TS === undefined) m.odds_TS = 7.0;
@@ -52,10 +54,9 @@ async function loadData() {
         if (m.aggregateScore === undefined) m.aggregateScore = null;
     });
 
-    // Пересчитываем коэффициент ОЗ для всех открытых матчей без счёта
     let oddsChanged = false;
     for (const m of window.matches) {
-        if (!m.score && m.status === 'open') {
+        if (!m.score && m.status === 'open' && typeof getTeamStats === 'function' && typeof smartOdds === 'function') {
             const stats1 = getTeamStats(m.team1);
             const stats2 = getTeamStats(m.team2);
             const newOdds = smartOdds(stats1, stats2, m.team1, m.team2);
@@ -66,7 +67,7 @@ async function loadData() {
         }
     }
     if (oddsChanged) {
-        await saveMatches(); // сохраняем обновлённые коэффициенты в БД
+        await saveMatches();
     }
 
     const knownAdmins = ['admin', 'V0rt3x', 'N3bulous'];
@@ -150,12 +151,10 @@ async function showMain() {
     const logoutBtn = document.createElement('button'); logoutBtn.className = 'logout-header-btn'; logoutBtn.textContent = 'Выйти'; logoutBtn.onclick = logout;
     window.els.headerRight.appendChild(logoutBtn);
     renderTab(window.currentTab);
-    checkPendingBets();
+    if (typeof checkPendingBets === 'function') checkPendingBets();
     if (user && user.role !== 'admin' && user.role !== 'match_manager') {
-        checkLoanStatus(user);
+        if (typeof checkLoanStatus === 'function') checkLoanStatus(user);
         await saveUsers();
-    }
-    if (user && user.role !== 'admin' && user.role !== 'match_manager') {
         setupNotifications();
     }
 }
@@ -163,7 +162,9 @@ async function showMain() {
 function checkPendingBets() {
     const user = getCurrentUser();
     if (!user || user.role === 'admin' || user.role === 'match_manager') return;
-    window.matches.filter(m => m.score).forEach(m => resolveBetsForMatch(m));
+    if (typeof resolveBetsForMatch === 'function') {
+        window.matches.filter(m => m.score).forEach(m => resolveBetsForMatch(m));
+    }
     saveUsers();
 }
 
@@ -171,16 +172,16 @@ function renderTab(tab) {
     window.els.tab.innerHTML = '';
     const user = getCurrentUser();
     if (user && (user.role === 'admin' || user.role === 'match_manager')) {
-        if (tab === 'adminManage') renderAdminManage();
-        else if (tab === 'adminAdd') renderAdminAdd();
-        else if (tab === 'adminUsers' && user.role === 'admin') renderAdminUsers();
-        else if (tab === 'adminClubs' && user.role === 'admin') renderAdminClubs();
-        else if (tab === 'adminPromo' && user.role === 'admin') renderAdminPromo();
-        else if (tab === 'adminNews' && user.role === 'admin') renderAdminNews();
-        else if (tab === 'adminLog' && user.role === 'admin') renderAdminLog();
-        else if (tab === 'adminPush' && user.role === 'admin') renderAdminPush();
-        else if (tab === 'adminExport' && user.role === 'admin') renderAdminExport();
-        else if (tab === 'adminCredits' && user.role === 'admin') renderAdminCredits();
+        if (tab === 'adminManage' && typeof renderAdminManage === 'function') renderAdminManage();
+        else if (tab === 'adminAdd' && typeof renderAdminAdd === 'function') renderAdminAdd();
+        else if (tab === 'adminUsers' && user.role === 'admin' && typeof renderAdminUsers === 'function') renderAdminUsers();
+        else if (tab === 'adminClubs' && user.role === 'admin' && typeof renderAdminClubs === 'function') renderAdminClubs();
+        else if (tab === 'adminPromo' && user.role === 'admin' && typeof renderAdminPromo === 'function') renderAdminPromo();
+        else if (tab === 'adminNews' && user.role === 'admin' && typeof renderAdminNews === 'function') renderAdminNews();
+        else if (tab === 'adminLog' && user.role === 'admin' && typeof renderAdminLog === 'function') renderAdminLog();
+        else if (tab === 'adminPush' && user.role === 'admin' && typeof renderAdminPush === 'function') renderAdminPush();
+        else if (tab === 'adminExport' && user.role === 'admin' && typeof renderAdminExport === 'function') renderAdminExport();
+        else if (tab === 'adminCredits' && user.role === 'admin' && typeof renderAdminCredits === 'function') renderAdminCredits();
     } else {
         if (tab === 'matches') renderMatches();
         else if (tab === 'express') renderExpress();
@@ -236,7 +237,7 @@ document.querySelectorAll('#workerBottomNav .nav-item').forEach(item => item.onc
 });
 
 window.onload = async () => {
-    document.body.classList.add('purple-theme'); // Включаем фиолетовый дизайн
+    document.body.classList.add('purple-theme');
 
     await loadData();
     if (!window.currentUsername) {
@@ -248,7 +249,7 @@ window.onload = async () => {
     }
     if (window.currentUsername && window.users.some(u => u.username === window.currentUsername)) {
         const user = getCurrentUser();
-        if (user) checkLoanStatus(user);
+        if (user && typeof checkLoanStatus === 'function') checkLoanStatus(user);
         await showMain();
     } else {
         showWelcome();

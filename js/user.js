@@ -1,9 +1,7 @@
 window.expressState = { step:'divisions', sel:[], div:null, outcomes:{}, totalOdds:0, period:'match' };
 window.matchState = { view:'divisions', div:null, match:null, period:'match' };
 
-// Единый обработчик для всех back-link и period-btn
 document.addEventListener('click', function(e) {
-    // Кнопки периода (таймов)
     const periodBtn = e.target.closest('.period-btn');
     if (periodBtn) {
         const period = periodBtn.dataset.period;
@@ -17,10 +15,8 @@ document.addEventListener('click', function(e) {
         return;
     }
 
-    // Кнопки "Назад" / "Вернуться"
     const backLink = e.target.closest('.back-link');
     if (backLink) {
-        // Экспресс
         if (window.expressState.step === 'outcomes') {
             window.expressState.step = 'matches';
             renderExpress();
@@ -32,7 +28,6 @@ document.addEventListener('click', function(e) {
             window.expressState.step = 'divisions';
             renderExpress();
         }
-        // Ординар
         else if (window.matchState.view === 'bet') {
             window.matchState.view = 'matches';
             renderMatches();
@@ -48,7 +43,9 @@ function renderExpress() {
     if (window.expressState.step === 'divisions') {
         window.els.tab.innerHTML = `<div class="section-title">Экспресс — Выберите дивизион</div><div class="division-grid"></div>`;
         const grid = window.els.tab.querySelector('.division-grid');
-        DIVISIONS.forEach(d => { const c = document.createElement('div'); c.className = 'division-card'; c.textContent = d; c.onclick = () => { window.expressState.div = d; window.expressState.step = 'matches'; renderExpress(); }; grid.appendChild(c); });
+        if (typeof DIVISIONS !== 'undefined') {
+            DIVISIONS.forEach(d => { const c = document.createElement('div'); c.className = 'division-card'; c.textContent = d; c.onclick = () => { window.expressState.div = d; window.expressState.step = 'matches'; renderExpress(); }; grid.appendChild(c); });
+        }
     } else if (window.expressState.step === 'matches') {
         const allNotArchived = window.matches.filter(m => 
             m.division === window.expressState.div && 
@@ -117,7 +114,7 @@ function renderExpress() {
                     <button class="action-btn small period-btn ${period==='2H'?'selected':''}" data-period="2H">2-й тайм</button>
                 </div>
                 <div class="odds-row">${outcomesHtml}</div>`;
-            // Выбор исхода
+            
             window.els.tab.querySelectorAll('.odd-block').forEach(b => b.onclick = function() {
                 const out = this.dataset.out;
                 if (out === 'TS') {
@@ -173,7 +170,9 @@ function renderMatches() {
     if (window.matchState.view === 'divisions') {
         window.els.tab.innerHTML = `<div class="section-title">Выберите дивизион</div><div class="division-grid"></div>`;
         const grid = window.els.tab.querySelector('.division-grid');
-        DIVISIONS.forEach(d => { const c = document.createElement('div'); c.className = 'division-card'; c.textContent = d; c.onclick = () => { window.matchState.div = d; window.matchState.view = 'matches'; renderMatches(); }; grid.appendChild(c); });
+        if (typeof DIVISIONS !== 'undefined') {
+            DIVISIONS.forEach(d => { const c = document.createElement('div'); c.className = 'division-card'; c.textContent = d; c.onclick = () => { window.matchState.div = d; window.matchState.view = 'matches'; renderMatches(); }; grid.appendChild(c); });
+        }
     } else if (window.matchState.view === 'matches') {
         const list = window.matches.filter(m => 
             m.division === window.matchState.div && 
@@ -250,23 +249,26 @@ function renderMatches() {
                     exactScore = null;
                 }
             });
-            document.getElementById('placeBet').onclick = async () => {
-                const user = getCurrentUser(); if (!user) return;
-                if (!selOut) return alert('Выберите исход');
-                if (selOut === 'TS' && !exactScore) return alert('Введите точный счёт');
-                const amount = +document.getElementById('betAmount').value;
-                if (isNaN(amount) || amount <= 0) return alert('Некорректная сумма');
-                if (amount > user.balance) return alert('Недостаточно средств');
-                if (user.frozenUntil > Date.now()) return alert('Ставки заморожены до ' + new Date(user.frozenUntil).toLocaleString());
-                const odds = getOddsForPeriod(m, selOut, window.matchState.period);
-                user.balance -= amount;
-                user.bets.push({ type:'single', matchId:m.id, team1:m.team1, team2:m.team2, outcome:selOut, amount, odds, status:'pending', winAmount:0, exactScore, period: window.matchState.period });
-                await saveUsers();
-                alert('Ставка принята!');
-                document.getElementById('betAmount').value = '';
-                selOut = null; exactScore = null;
-                window.els.tab.querySelectorAll('.odd-block').forEach(x => x.classList.remove('selected'));
-            };
+            const placeBetBtn = document.getElementById('placeBet');
+            if (placeBetBtn) {
+                placeBetBtn.onclick = async () => {
+                    const user = getCurrentUser(); if (!user) return;
+                    if (!selOut) return alert('Выберите исход');
+                    if (selOut === 'TS' && !exactScore) return alert('Введите точный счёт');
+                    const amount = +document.getElementById('betAmount').value;
+                    if (isNaN(amount) || amount <= 0) return alert('Некорректная сумма');
+                    if (amount > user.balance) return alert('Недостаточно средств');
+                    if (user.frozenUntil > Date.now()) return alert('Ставки заморожены до ' + new Date(user.frozenUntil).toLocaleString());
+                    const odds = getOddsForPeriod(m, selOut, window.matchState.period);
+                    user.balance -= amount;
+                    user.bets.push({ type:'single', matchId:m.id, team1:m.team1, team2:m.team2, outcome:selOut, amount, odds, status:'pending', winAmount:0, exactScore, period: window.matchState.period });
+                    await saveUsers();
+                    alert('Ставка принята!');
+                    document.getElementById('betAmount').value = '';
+                    selOut = null; exactScore = null;
+                    window.els.tab.querySelectorAll('.odd-block').forEach(x => x.classList.remove('selected'));
+                };
+            }
         };
         renderBetContent();
     }
@@ -348,7 +350,11 @@ function renderPromo() {
         promo.remaining--;
         if (!user.activatedPromos) user.activatedPromos = [];
         user.activatedPromos.push(code);
-        addBalanceWithLoan(user, promo.bonus);
+        if (typeof addBalanceWithLoan === 'function') {
+            addBalanceWithLoan(user, promo.bonus);
+        } else {
+            user.balance += promo.bonus;
+        }
         window.promoLog.push({ username: user.username, promoCode: code, amount: promo.bonus, timestamp: Date.now() });
         await Promise.all([saveUsers(), savePromoCodes(), savePromoLog()]);
         const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
@@ -398,72 +404,85 @@ function renderProfile() {
     html += `<button class="action-btn" id="logoutProfileBtn" style="margin-top:20px;">Выйти</button>`;
     window.els.tab.innerHTML = html;
 
-    checkPushSubscription().then(hasSub => {
-        const statusDiv = document.getElementById('pushStatus');
-        if (statusDiv) statusDiv.innerHTML = hasSub 
-            ? '<span style="color:var(--success);">Уведомления включены</span>' 
-            : '<span style="color:var(--danger);">Уведомления не настроены</span>';
-    });
+    if (typeof checkPushSubscription === 'function') {
+        checkPushSubscription().then(hasSub => {
+            const statusDiv = document.getElementById('pushStatus');
+            if (statusDiv) statusDiv.innerHTML = hasSub 
+                ? '<span style="color:var(--success);">Уведомления включены</span>' 
+                : '<span style="color:var(--danger);">Уведомления не настроены</span>';
+        });
+    }
 
-    document.getElementById('togglePushBtn').onclick = async () => {
-        const hasSub = await checkPushSubscription();
-        if (hasSub) {
-            if (confirm('Отключить уведомления?')) {
-                await window.db.ref(`pushSubscriptions/${window.currentUsername}`).remove();
-                renderProfile();
+    const togglePushBtn = document.getElementById('togglePushBtn');
+    if (togglePushBtn && typeof checkPushSubscription === 'function') {
+        togglePushBtn.onclick = async () => {
+            const hasSub = await checkPushSubscription();
+            if (hasSub) {
+                if (confirm('Отключить уведомления?')) {
+                    await window.db.ref(`pushSubscriptions/${window.currentUsername}`).remove();
+                    renderProfile();
+                }
+            } else if (typeof requestPushPermission === 'function') {
+                const granted = await requestPushPermission();
+                if (granted) {
+                    alert('Уведомления включены!');
+                    renderProfile();
+                } else {
+                    alert('Не удалось получить разрешение.');
+                }
             }
-        } else {
-            const granted = await requestPushPermission();
-            if (granted) {
-                alert('Уведомления включены!');
-                renderProfile();
-            } else {
-                alert('Не удалось получить разрешение.');
-            }
-        }
-    };
+        };
+    }
 
     if (!canClaim) {
         const timerEl = document.getElementById('bonusTimer');
         function updateTimer() {
             const now2 = Date.now();
             const remaining = last + cooldown - now2;
-            if (remaining <= 0) { timerEl.textContent = '00:00:00'; renderTab('profile'); return; }
+            if (remaining <= 0) { if (timerEl) timerEl.textContent = '00:00:00'; renderTab('profile'); return; }
             const hours = Math.floor(remaining / 3600000);
             const minutes = Math.floor((remaining % 3600000) / 60000);
             const seconds = Math.floor((remaining % 60000) / 1000);
-            timerEl.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+            if (timerEl) timerEl.textContent = `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
         }
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
         if (window._bonusInterval) clearInterval(window._bonusInterval);
         window._bonusInterval = interval;
+    } else {
+        const claimDailyBtn = document.getElementById('claimDailyBtn');
+        if (claimDailyBtn) {
+            claimDailyBtn.onclick = async () => {
+                const rand = Math.random();
+                let bonus;
+                if (rand < 0.7) bonus = Math.floor(Math.random() * 451) + 50;
+                else if (rand < 0.95) bonus = Math.floor(Math.random() * 451) + 500;
+                else bonus = Math.floor(Math.random() * 2000) + 500;
+                
+                if (typeof addBalanceWithLoan === 'function') {
+                    addBalanceWithLoan(user, bonus);
+                } else {
+                    user.balance += bonus;
+                }
+                
+                user.lastDailyBonus = Date.now();
+                await saveUsers();
+                const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
+                overlay.innerHTML = `<div class="modal-content"><div style="font-size:1.5rem;font-weight:700;margin-bottom:15px;">БОНУС</div><div>Поздравляем, вы получили ежедневный бонус в размере ${bonus} коинов! Приходите завтра и получайте бонус ещё раз!</div><button class="modal-btn green closeModal">Продолжить</button></div>`;
+                document.body.appendChild(overlay);
+                overlay.querySelector('.closeModal').onclick = () => overlay.remove();
+                renderTab('profile');
+            };
+        }
     }
-
-    if (canClaim) {
-        document.getElementById('claimDailyBtn').onclick = async () => {
-            const rand = Math.random();
-            let bonus;
-            if (rand < 0.7) bonus = Math.floor(Math.random() * 451) + 50;
-            else if (rand < 0.95) bonus = Math.floor(Math.random() * 451) + 500;
-            else bonus = Math.floor(Math.random() * 2000) + 500;
-            addBalanceWithLoan(user, bonus);
-            user.lastDailyBonus = Date.now();
-            await saveUsers();
-            const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-            overlay.innerHTML = `<div class="modal-content"><div style="font-size:1.5rem;font-weight:700;margin-bottom:15px;">БОНУС</div><div>Поздравляем, вы получили ежедневный бонус в размере ${bonus} коинов! Приходите завтра и получайте бонус ещё раз!</div><button class="modal-btn green closeModal">Продолжить</button></div>`;
-            document.body.appendChild(overlay);
-            overlay.querySelector('.closeModal').onclick = () => overlay.remove();
-            renderTab('profile');
-        };
-    }
-    document.getElementById('logoutProfileBtn').onclick = logout;
+    const logoutBtn = document.getElementById('logoutProfileBtn');
+    if (logoutBtn) logoutBtn.onclick = logout;
 }
 
 function renderNews() {
     let html = '<div class="section-title">Новости</div>';
     
-    // Reverse the list and strictly cap visible news updates at 3
+    // Ограничение максимум 3 новостями
     const visibleNews = window.newsList.slice().reverse().slice(0, 3);
     
     if (visibleNews.length === 0) html += '<p style="color:#aaa;">Новостей пока нет</p>';
@@ -497,10 +516,10 @@ function renderLeaderboard() {
 function renderCredit() {
     const user = getCurrentUser();
     if (!user) { window.els.tab.innerHTML = '<div class="section-title">Войдите заново</div>'; return; }
-    checkLoanStatus(user);
+    if (typeof checkLoanStatus === 'function') checkLoanStatus(user);
     let html = '<div class="section-title">Кредит</div>';
 
-    if (user.loanAmount) {
+    if (user.loanAmount && typeof getLoanDetails === 'function') {
         const details = getLoanDetails(user);
         html += `<div class="credit-card">
             <div><strong>Текущий кредит:</strong> ${user.loanAmount.toFixed(0)} коинов</div>
@@ -550,7 +569,7 @@ function renderCredit() {
             await saveUsers(); await saveLoanLogs();
             alert('Кредит получен!');
             renderCredit();
-        } else if (target.id === 'repayLoanBtn') {
+        } else if (target.id === 'repayLoanBtn' && typeof getLoanDetails === 'function') {
             const details = getLoanDetails(user);
             const remaining = details.remaining;
             const maxPay = Math.min(user.balance, remaining);
@@ -559,7 +578,9 @@ function renderCredit() {
             const amount = parseInt(payAmount);
             if (isNaN(amount) || amount <= 0 || amount > maxPay) return alert('Некорректная сумма');
             user.balance -= amount;
-            applyLoanPayment(user, amount);
+            if (typeof applyLoanPayment === 'function') {
+                applyLoanPayment(user, amount);
+            }
             await saveUsers(); await saveLoanLogs();
             alert('Платёж принят!');
             renderCredit();
